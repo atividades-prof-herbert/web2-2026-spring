@@ -20,6 +20,7 @@ web2-2026-spring/
 | Branch | Tema |
 |--------|------|
 | `aula-01-spring-web` | Setup do ambiente, Spring Initializr, estrutura do projeto, anotações do Spring, Controllers e rotas HTTP com `@RestController` |
+| `aula-02-spring-controller` | Controllers em profundidade: `@PathVariable`, `ResponseEntity`, DTOs de resposta (`record`), `GET` e `DELETE` por id |
 
 ## Pré-requisitos
 
