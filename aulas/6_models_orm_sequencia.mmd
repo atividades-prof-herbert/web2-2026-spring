@@ -1,0 +1,47 @@
+sequenceDiagram
+    actor Cliente
+
+    box Controller
+    participant TC as TransacaoController
+    end
+
+    box Service
+    participant TS as TransacaoService
+    participant CS as CategoriaService
+    participant CasaS as CasaService
+    end
+
+    box Model
+    participant TM as Transacao
+    participant CM as Categoria
+    participant CaM as Casa
+    end
+
+    Cliente->>TC: GET /transacoes/{id}
+    TC->>TS: buscarPorId(id)
+
+    TS->>TM: buscar Transacao por id na lista em memória
+    TM-->>TS: Transacao
+
+    TS->>CS: buscarPorId(transacao.getCategoriaId())
+
+    CS->>CM: buscar Categoria por id na lista em memória
+    CM-->>CS: Categoria
+
+    CS->>CasaS: buscarPorId(categoria.getCasaId())
+
+    CasaS->>CaM: buscar Casa por id na lista em memória
+    CaM-->>CasaS: Casa
+
+    Note over CasaS: monta CasaResponseDTO<br/>a partir do Casa (model)
+    CasaS-->>CS: CasaResponseDTO
+
+    Note over CS: monta CategoriaResponseDTO<br/>a partir do Categoria (model) + CasaResponseDTO
+    CS-->>TS: CategoriaResponseDTO
+
+    Note over TS: monta TransacaoResponseDTO<br/>a partir do Transacao (model) + CategoriaResponseDTO
+    TS-->>TC: TransacaoResponseDTO
+
+    TC-->>Cliente: 200 OK + JSON
+
+    Note over TC,CaM: O Model nunca sai da camada Service:<br/>quem cruza para Controller e Cliente é sempre o DTO.

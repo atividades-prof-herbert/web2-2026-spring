@@ -1,7 +1,7 @@
 package br.edu.ifpr.casalapp.controller;
 
-import br.edu.ifpr.casalapp.dto.TransacaoRequest;
-import br.edu.ifpr.casalapp.dto.TransacaoResponse;
+import br.edu.ifpr.casalapp.dto.TransacaoRequestDTO;
+import br.edu.ifpr.casalapp.dto.TransacaoResponseDTO;
 import br.edu.ifpr.casalapp.service.TransacaoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,13 +18,13 @@ public class TransacaoController {
     }
 
     @GetMapping("/transacoes")
-    public List<TransacaoResponse> listarTransacoes() {
+    public List<TransacaoResponseDTO> listarTransacoes() {
         return transacaoService.listar();
     }
 
     @GetMapping("/transacoes/{id}")
-    public ResponseEntity<TransacaoResponse> buscarTransacao(@PathVariable int id) {
-        TransacaoResponse transacao = transacaoService.buscarPorId(id);
+    public ResponseEntity<TransacaoResponseDTO> buscarTransacao(@PathVariable int id) {
+        TransacaoResponseDTO transacao = transacaoService.buscarPorId(id);
 
         if (transacao != null) {
             return ResponseEntity.ok(transacao);
@@ -33,17 +33,17 @@ public class TransacaoController {
     }
 
     @PostMapping("/transacoes")
-    public ResponseEntity<TransacaoResponse> criarTransacao(@RequestBody TransacaoRequest request) {
-        TransacaoResponse nova = transacaoService.criar(request);
+    public ResponseEntity<TransacaoResponseDTO> criarTransacao(@RequestBody TransacaoRequestDTO request) {
+        TransacaoResponseDTO nova = transacaoService.criar(request);
         return ResponseEntity.status(201).body(nova);
     }
 
     @PutMapping("/transacoes/{id}")
-    public ResponseEntity<TransacaoResponse> atualizarTransacao(
+    public ResponseEntity<TransacaoResponseDTO> atualizarTransacao(
             @PathVariable int id,
-            @RequestBody TransacaoRequest request) {
+            @RequestBody TransacaoRequestDTO request) {
 
-        TransacaoResponse atualizada = transacaoService.atualizar(id, request);
+        TransacaoResponseDTO atualizada = transacaoService.atualizar(id, request);
 
         if (atualizada != null) {
             return ResponseEntity.ok(atualizada);
@@ -52,11 +52,11 @@ public class TransacaoController {
     }
 
     @PatchMapping("/transacoes/{id}")
-    public ResponseEntity<TransacaoResponse> atualizarParcialTransacao(
+    public ResponseEntity<TransacaoResponseDTO> atualizarParcialTransacao(
             @PathVariable int id,
-            @RequestBody TransacaoRequest request) {
+            @RequestBody TransacaoRequestDTO request) {
 
-        TransacaoResponse atualizada = transacaoService.atualizarParcial(id, request);
+        TransacaoResponseDTO atualizada = transacaoService.atualizarParcial(id, request);
 
         if (atualizada != null) {
             return ResponseEntity.ok(atualizada);

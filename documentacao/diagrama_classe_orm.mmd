@@ -1,0 +1,54 @@
+classDiagram
+    class Casa {
+        int id
+        String nome
+        String codigoConvite
+    }
+
+    class Usuario {
+        int id
+        String nome
+        String email
+        String senhaHash
+        double receitaMensal
+        Casa casa
+    }
+
+    class Categoria {
+        int id
+        String nome
+        Casa casa
+        Categoria categoriaPai
+    }
+
+    class Orcamento {
+        int id
+        Categoria categoria
+        Casa casa
+        int mes
+        int ano
+        double valorLimite
+    }
+
+    class Lancamento {
+        int id
+        Casa casa
+        Categoria categoria
+        Usuario usuario
+        String tipo
+        double valor
+        Date data
+        String descricao
+    }
+
+    Usuario "0..*" --> "1" Casa : casa
+    Categoria "0..*" --> "1" Casa : casa
+    Categoria "0..1" --> "0..1" Categoria : categoriaPai
+    Orcamento "0..*" --> "1" Casa : casa
+    Orcamento "0..*" --> "1" Categoria : categoria
+    Lancamento "0..*" --> "1" Casa : casa
+    Lancamento "0..*" --> "1" Categoria : categoria
+    Lancamento "0..*" --> "1" Usuario : usuario
+
+    note for Categoria "categoriaPai é um auto-relacionamento opcional,<br/>equivalente à FK categoriaPaiId do diagrama ER<br/>(representa subcategorias)"
+    note for Casa "Nenhuma classe guarda coleção do lado 1:<br/>só o lado muitos guarda a referência,<br/>como discutido em 6_models_orm.md"

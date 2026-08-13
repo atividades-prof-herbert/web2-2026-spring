@@ -1,0 +1,50 @@
+erDiagram
+    CASA ||--o{ USUARIO : possui
+    CASA ||--o{ CATEGORIA : possui
+    CASA ||--o{ ORCAMENTO : possui
+    CASA ||--o{ LANCAMENTO : possui
+    CATEGORIA ||--o{ ORCAMENTO : limita
+    CATEGORIA ||--o{ LANCAMENTO : classifica
+    USUARIO ||--o{ LANCAMENTO : registra
+
+    CASA {
+        int id PK
+        string nome
+        string codigoConvite
+    }
+
+    USUARIO {
+        int id PK
+        string nome
+        string email
+        string senhaHash
+        double receitaMensal
+        int casaId FK
+    }
+
+    CATEGORIA {
+        int id PK
+        string nome
+        int casaId FK
+        int categoriaPaiId FK
+    }
+
+    ORCAMENTO {
+        int id PK
+        int categoriaId FK
+        int casaId FK
+        int mes
+        int ano
+        double valorLimite
+    }
+
+    LANCAMENTO {
+        int id PK
+        int casaId FK
+        int categoriaId FK
+        int usuarioId FK
+        string tipo
+        double valor
+        date data
+        string descricao
+    }
