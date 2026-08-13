@@ -5,11 +5,13 @@ public class Categoria {
     private int id;
     private String nome;
     private String icone;
+    private int casaId;
 
-    public Categoria(int id, String nome, String icone) {
+    public Categoria(int id, String nome, String icone, int casaId) {
         this.id = id;
         this.nome = nome;
         this.icone = icone;
+        this.casaId = casaId;
     }
 
     public int getId() {
@@ -22,5 +24,9 @@ public class Categoria {
 
     public String getIcone() {
         return icone;
+    }
+
+    public int getCasaId() {
+        return casaId;
     }
 }

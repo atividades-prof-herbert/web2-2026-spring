@@ -23,6 +23,7 @@ web2-2026-spring/
 | `aula-02-spring-controller` | Controllers em profundidade: `@PathVariable`, `ResponseEntity`, DTOs de resposta (`record`), `GET` e `DELETE` por id |
 | `aula-03-spring-controller` | `POST`, `PUT` e `PATCH`: `@RequestBody`, DTO de request, ArrayList como banco fake, criação com `201 Created`, substituição completa vs atualização parcial |
 | `aula-04-spring-relacao-vetor` | Relacionamento entre recursos: `TransacaoController` relacionado a `Categoria` via `categoriaId`, pacote `model/` (classes tradicionais, separadas dos DTOs em `record`) e INNER JOIN manual com loops básicos |
+| `aula-05-spring-service` | Camada de `service/`: regra de visibilidade entre `controller`, `service`, `model` e `dto`, anotação `@Service`, injeção de dependência por construtor vs `@Autowired`, `CategoriaService` centralizando dados e conversão para DTO. Exercício: entidade `Casa` (UC-5) relacionada a `Categoria` via `casaId`, e `TransacaoService` resolvendo o join via `CategoriaService` |
 
 ## Pré-requisitos
 

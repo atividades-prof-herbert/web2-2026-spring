@@ -310,16 +310,3 @@ Antes da refatoração, `categorias` era `List<CategoriaResponse>`: o "banco" e 
 Os demais métodos (`buscarCategoria`, `criarCategoria`, `atualizarCategoria`, `atualizarParcialCategoria`, `deletarCategoria`) seguem o mesmo raciocínio: operam sobre `List<Categoria>` e usam `toResponse(...)` só na hora de montar o `ResponseEntity`.
 
 ---
-
-## Resumo
-
-| Elemento | Para que serve |
-|---|---|
-| `model/Categoria`, `model/Transacao` | Representam a linha do banco de dados fake, o que é armazenado. Classes tradicionais, com atributos privados e métodos `get`, não `record`. |
-| `dto/...Request` | O que o cliente envia (sem id, sem dados de outros recursos). |
-| `dto/...Response` | O que o servidor devolve (com id, podendo incluir dados combinados de outros recursos). |
-| `categoriaId` | A "chave estrangeira" dentro de `model.Transacao`, só o número, nunca o objeto Categoria inteiro. |
-| `toResponse(model)` | Converte o objeto do banco fake (model) no DTO de resposta, aplicando o join quando necessário. |
-| cópia local de `categorias` em `TransacaoController` | Solução temporária para o join, enquanto não existe uma camada de service compartilhada. |
-| loop externo mais loop interno | Implementação manual de um INNER JOIN: para cada linha de um vetor, procura a correspondente no outro. |
-| `categoriaNome == null` | Quando o `categoriaId` não corresponde a nenhuma categoria, a transação ainda é devolvida, só sem o nome. |

@@ -138,9 +138,3 @@ Para cada transação exibida na lista, deve haver um controle que permita ao us
 
 
 
----
-
-## Observações
-
-- Para o frontend funcionar sem bloqueio de CORS, adicione `@CrossOrigin` no `TransacaoController`.
-- Não é necessário persistir os dados em banco de dados; o `ArrayList` em memória é suficiente.
