@@ -1,0 +1,26 @@
+sequenceDiagram
+    actor Cliente
+    participant C as Controller
+    participant S as Service
+    participant R as Repository
+    participant M as Model
+
+    Cliente->>C: requisição HTTP (DTO de request)
+    Note over C: recebe a requisição e devolve<br/>a resposta com o status certo
+
+    C->>S: chama o método passando o DTO
+
+    Note over S: aplica regra de negócio<br/>(ex.: PATCH parcial, montar o JOIN)
+
+    S->>R: buscarPorId / salvar / atualizar / deletar
+    Note over R: implementa a operação de banco
+
+    R->>M: acessa a lista em memória<br/>(futuramente: tabela do banco)
+    M-->>R: Model
+
+    R-->>S: Model
+
+    Note over S: converte Model em DTO
+
+    S-->>C: DTO de resposta
+    C-->>Cliente: ResponseEntity (JSON)

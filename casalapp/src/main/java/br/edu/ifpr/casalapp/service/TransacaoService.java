@@ -5,33 +5,43 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import br.edu.ifpr.casalapp.dto.CategoriaResponseDTO;
 import br.edu.ifpr.casalapp.dto.TransacaoRequestDTO;
 import br.edu.ifpr.casalapp.dto.TransacaoResponseDTO;
+import br.edu.ifpr.casalapp.model.Casa;
+import br.edu.ifpr.casalapp.model.Categoria;
 import br.edu.ifpr.casalapp.model.Transacao;
+import br.edu.ifpr.casalapp.repository.CasaRepository;
+import br.edu.ifpr.casalapp.repository.CategoriaRepository;
+import br.edu.ifpr.casalapp.repository.TransacaoRepository;
 
 @Service
 public class TransacaoService {
 
-    private final CategoriaService categoriaService;
+    private final TransacaoRepository transacaoRepository;
+    private final CategoriaRepository categoriaRepository;
+    private final CasaRepository casaRepository;
 
-    public TransacaoService(CategoriaService categoriaService) {
-        this.categoriaService = categoriaService;
+    public TransacaoService(
+            TransacaoRepository transacaoRepository,
+            CategoriaRepository categoriaRepository,
+            CasaRepository casaRepository) {
+        this.transacaoRepository = transacaoRepository;
+        this.categoriaRepository = categoriaRepository;
+        this.casaRepository = casaRepository;
     }
-
-    private int proximoId = 4;
-
-    private final List<Transacao> transacoes = new ArrayList<>(List.of(
-            new Transacao(1, "Almoço", 35.90, 1),
-            new Transacao(2, "Corrida de aplicativo", 18.50, 2),
-            new Transacao(3, "Consulta médica", 150.00, 3)
-    ));
 
     private TransacaoResponseDTO toResponse(Transacao transacao) {
         String categoriaNome = null;
-        CategoriaResponseDTO categoria = categoriaService.buscarPorId(transacao.getCategoriaId());
+        String casaNome = null;
+
+        Categoria categoria = categoriaRepository.buscarPorId(transacao.getCategoriaId());
         if (categoria != null) {
-            categoriaNome = categoria.nome();
+            categoriaNome = categoria.getNome();
+
+            Casa casa = casaRepository.buscarPorId(categoria.getCasaId());
+            if (casa != null) {
+                casaNome = casa.getNome();
+            }
         }
 
         return new TransacaoResponseDTO(
@@ -39,14 +49,15 @@ public class TransacaoService {
                 transacao.getDescricao(),
                 transacao.getValor(),
                 transacao.getCategoriaId(),
-                categoriaNome
+                categoriaNome,
+                casaNome
         );
     }
 
     public List<TransacaoResponseDTO> listar() {
         List<TransacaoResponseDTO> resultado = new ArrayList<>();
 
-        for (Transacao transacao : transacoes) {
+        for (Transacao transacao : transacaoRepository.listar()) {
             resultado.add(toResponse(transacao));
         }
 
@@ -54,56 +65,46 @@ public class TransacaoService {
     }
 
     public TransacaoResponseDTO buscarPorId(int id) {
-        for (Transacao transacao : transacoes) {
-            if (transacao.getId() == id) {
-                return toResponse(transacao);
-            }
+        Transacao transacao = transacaoRepository.buscarPorId(id);
+        if (transacao != null) {
+            return toResponse(transacao);
         }
         return null;
     }
 
     public TransacaoResponseDTO criar(TransacaoRequestDTO request) {
-        Transacao nova = new Transacao(proximoId, request.descricao(), request.valor(), request.categoriaId());
-        proximoId++;
-        transacoes.add(nova);
-        return toResponse(nova);
+        Transacao nova = new Transacao(0, request.descricao(), request.valor(), request.categoriaId());
+        Transacao salva = transacaoRepository.salvar(nova);
+        return toResponse(salva);
     }
 
     public TransacaoResponseDTO atualizar(int id, TransacaoRequestDTO request) {
-        for (int i = 0; i < transacoes.size(); i++) {
-            if (transacoes.get(i).getId() == id) {
-                Transacao atualizada = new Transacao(id, request.descricao(), request.valor(), request.categoriaId());
-                transacoes.set(i, atualizada);
-                return toResponse(atualizada);
-            }
+        Transacao existente = transacaoRepository.buscarPorId(id);
+        if (existente == null) {
+            return null;
         }
-        return null;
+
+        Transacao atualizada = new Transacao(id, request.descricao(), request.valor(), request.categoriaId());
+        transacaoRepository.atualizar(id, atualizada);
+        return toResponse(atualizada);
     }
 
     public TransacaoResponseDTO atualizarParcial(int id, TransacaoRequestDTO request) {
-        for (int i = 0; i < transacoes.size(); i++) {
-            if (transacoes.get(i).getId() == id) {
-                Transacao existente = transacoes.get(i);
-
-                String novaDescricao = request.descricao() != null ? request.descricao() : existente.getDescricao();
-                Double novoValor = request.valor() != null ? request.valor() : existente.getValor();
-                int novaCategoriaId = request.categoriaId() != null ? request.categoriaId() : existente.getCategoriaId();
-
-                Transacao atualizada = new Transacao(id, novaDescricao, novoValor, novaCategoriaId);
-                transacoes.set(i, atualizada);
-                return toResponse(atualizada);
-            }
+        Transacao existente = transacaoRepository.buscarPorId(id);
+        if (existente == null) {
+            return null;
         }
-        return null;
+
+        String novaDescricao = request.descricao() != null ? request.descricao() : existente.getDescricao();
+        Double novoValor = request.valor() != null ? request.valor() : existente.getValor();
+        int novaCategoriaId = request.categoriaId() != null ? request.categoriaId() : existente.getCategoriaId();
+
+        Transacao atualizada = new Transacao(id, novaDescricao, novoValor, novaCategoriaId);
+        transacaoRepository.atualizar(id, atualizada);
+        return toResponse(atualizada);
     }
 
     public boolean deletar(int id) {
-        for (Transacao transacao : transacoes) {
-            if (transacao.getId() == id) {
-                transacoes.remove(transacao);
-                return true;
-            }
-        }
-        return false;
+        return transacaoRepository.deletar(id);
     }
 }

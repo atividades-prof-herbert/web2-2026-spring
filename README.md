@@ -24,7 +24,8 @@ web2-2026-spring/
 | `aula-03-spring-controller` | `POST`, `PUT` e `PATCH`: `@RequestBody`, DTO de request, ArrayList como banco fake, criação com `201 Created`, substituição completa vs atualização parcial |
 | `aula-04-spring-relacao-vetor` | Relacionamento entre recursos: `TransacaoController` relacionado a `Categoria` via `categoriaId`, pacote `model/` (classes tradicionais, separadas dos DTOs em `record`) e INNER JOIN manual com loops básicos |
 | `aula-05-spring-service` | Camada de `service/`: regra de visibilidade entre `controller`, `service`, `model` e `dto`, anotação `@Service`, injeção de dependência por construtor vs `@Autowired`, `CategoriaService` centralizando dados e conversão para DTO. Exercício: entidade `Casa` (UC-5) relacionada a `Categoria` via `casaId`, e `TransacaoService` resolvendo o join via `CategoriaService` |
-| `aula-06-model-orm1` | ORM puro, sem anotações do Spring Data: o que é um ORM e sua relação com o diagrama entidade-relacionamento, relacionamento por id vs por referência de objeto, implementação manual de relacionamentos 1 para N e N para M, DTO composto devolvendo subcoleção (`CasaResponseDTO` com `List<CategoriaResponseDTO>`) e a dependência circular entre services que isso expõe. Padronização de nomenclatura dos DTOs com sufixo `DTO`. Diagrama de sequência (`aulas/6_models_orm_sequencia.mmd`) e diagrama de classe do ORM aplicado ao modelo ER (`documentacao/diagrama_classe_orm.mmd`) |
+| `aula-06-model-orm1` | ORM  |
+| `aula-07-model-persistence` | Camada de `repository/` |
 
 ## Pré-requisitos
 
