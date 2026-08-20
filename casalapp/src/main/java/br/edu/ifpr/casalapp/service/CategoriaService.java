@@ -2,43 +2,38 @@ package br.edu.ifpr.casalapp.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
-import br.edu.ifpr.casalapp.dto.CasaResponseDTO;
 import br.edu.ifpr.casalapp.dto.CategoriaRequestDTO;
 import br.edu.ifpr.casalapp.dto.CategoriaResponseDTO;
+import br.edu.ifpr.casalapp.model.Casa;
 import br.edu.ifpr.casalapp.model.Categoria;
+import br.edu.ifpr.casalapp.repository.CasaRepository;
+import br.edu.ifpr.casalapp.repository.CategoriaRepository;
 
 @Service
 public class CategoriaService {
 
-    private final CasaService casaService;
+    private final CategoriaRepository categoriaRepository;
+    private final CasaRepository casaRepository;
 
-    public CategoriaService(CasaService casaService) {
-        this.casaService = casaService;
+    public CategoriaService(CategoriaRepository categoriaRepository, CasaRepository casaRepository) {
+        this.categoriaRepository = categoriaRepository;
+        this.casaRepository = casaRepository;
     }
 
-    private int proximoId = 4;
-
-    private final List<Categoria> categorias = new ArrayList<>(List.of(
-            new Categoria(1, "Alimentação", "prato", 1),
-            new Categoria(2, "Transporte", "carro", 1),
-            new Categoria(3, "Saúde", "coração", 2)
-    ));
-
     private CategoriaResponseDTO toResponse(Categoria categoria) {
-        String casaNome = null;
-        CasaResponseDTO casa = casaService.buscarPorId(categoria.getCasaId());
-        if (casa != null) {
-            casaNome = casa.nome();
-        }
+        Casa casa = categoria.getCasa();
+        int casaId = casa != null ? casa.getId() : 0;
+        String casaNome = casa != null ? casa.getNome() : null;
 
         return new CategoriaResponseDTO(
                 categoria.getId(),
                 categoria.getNome(),
                 categoria.getIcone(),
-                categoria.getCasaId(),
+                casaId,
                 casaNome
         );
     }
@@ -46,7 +41,7 @@ public class CategoriaService {
     public List<CategoriaResponseDTO> listar() {
         List<CategoriaResponseDTO> resultado = new ArrayList<>();
 
-        for (Categoria categoria : categorias) {
+        for (Categoria categoria : categoriaRepository.findAll()) {
             resultado.add(toResponse(categoria));
         }
 
@@ -54,56 +49,71 @@ public class CategoriaService {
     }
 
     public CategoriaResponseDTO buscarPorId(int id) {
-        for (Categoria categoria : categorias) {
-            if (categoria.getId() == id) {
-                return toResponse(categoria);
-            }
+        Optional<Categoria> categoriaOpt = categoriaRepository.findById(id);
+        if (categoriaOpt.isPresent()) {
+            return toResponse(categoriaOpt.get());
         }
         return null;
     }
 
     public CategoriaResponseDTO criar(CategoriaRequestDTO request) {
-        Categoria nova = new Categoria(proximoId, request.nome(), request.icone(), request.casaId());
-        proximoId++;
-        categorias.add(nova);
-        return toResponse(nova);
+        Casa casa = null;
+        Optional<Casa> casaOpt = casaRepository.findById(request.casaId());
+        if (casaOpt.isPresent()) {
+            casa = casaOpt.get();
+        }
+
+        Categoria nova = new Categoria(0, request.nome(), request.icone(), casa);
+        Categoria salva = categoriaRepository.save(nova);
+        return toResponse(salva);
     }
 
     public CategoriaResponseDTO atualizar(int id, CategoriaRequestDTO request) {
-        for (int i = 0; i < categorias.size(); i++) {
-            if (categorias.get(i).getId() == id) {
-                Categoria atualizada = new Categoria(id, request.nome(), request.icone(), request.casaId());
-                categorias.set(i, atualizada);
-                return toResponse(atualizada);
-            }
+        if (!categoriaRepository.existsById(id)) {
+            return null;
         }
-        return null;
+
+        Casa casa = null;
+        Optional<Casa> casaOpt = casaRepository.findById(request.casaId());
+        if (casaOpt.isPresent()) {
+            casa = casaOpt.get();
+        }
+
+        Categoria atualizada = new Categoria(id, request.nome(), request.icone(), casa);
+        Categoria salva = categoriaRepository.save(atualizada);
+        return toResponse(salva);
     }
 
     public CategoriaResponseDTO atualizarParcial(int id, CategoriaRequestDTO request) {
-        for (int i = 0; i < categorias.size(); i++) {
-            if (categorias.get(i).getId() == id) {
-                Categoria existente = categorias.get(i);
+        Optional<Categoria> existenteOpt = categoriaRepository.findById(id);
+        if (existenteOpt.isEmpty()) {
+            return null;
+        }
 
-                String novoNome = request.nome() != null ? request.nome() : existente.getNome();
-                String novoIcone = request.icone() != null ? request.icone() : existente.getIcone();
-                int novaCasaId = request.casaId() != null ? request.casaId() : existente.getCasaId();
+        Categoria existente = existenteOpt.get();
 
-                Categoria atualizada = new Categoria(id, novoNome, novoIcone, novaCasaId);
-                categorias.set(i, atualizada);
-                return toResponse(atualizada);
+        String novoNome = request.nome() != null ? request.nome() : existente.getNome();
+        String novoIcone = request.icone() != null ? request.icone() : existente.getIcone();
+
+        Casa novaCasa = existente.getCasa();
+        if (request.casaId() != null) {
+            novaCasa = null;
+            Optional<Casa> casaOpt = casaRepository.findById(request.casaId());
+            if (casaOpt.isPresent()) {
+                novaCasa = casaOpt.get();
             }
         }
-        return null;
+
+        Categoria atualizada = new Categoria(id, novoNome, novoIcone, novaCasa);
+        Categoria salva = categoriaRepository.save(atualizada);
+        return toResponse(salva);
     }
 
     public boolean deletar(int id) {
-        for (Categoria categoria : categorias) {
-            if (categoria.getId() == id) {
-                categorias.remove(categoria);
-                return true;
-            }
+        if (!categoriaRepository.existsById(id)) {
+            return false;
         }
-        return false;
+        categoriaRepository.deleteById(id);
+        return true;
     }
 }

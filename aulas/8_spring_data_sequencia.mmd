@@ -1,0 +1,26 @@
+sequenceDiagram
+    actor Cliente
+    participant C as Controller
+    participant S as Service
+    participant R as JpaRepository (proxy gerado pelo Spring Data)
+    participant H as Hibernate
+    participant DB as MySQL (casal-app-web2)
+
+    Cliente->>C: requisição HTTP (DTO de request)
+    C->>S: chama o método passando o DTO
+
+    Note over S: aplica regra de negócio<br/>(ex.: resolver Casa pelo casaId antes de salvar a Categoria)
+
+    S->>R: save(entidade) / findById(id) / deleteById(id)
+    Note over R: nenhuma implementação escrita à mão:<br/>o Spring Data gerou esse proxy em tempo de execução
+
+    R->>H: delega a operação
+    H->>DB: gera e executa o SQL (INSERT/SELECT/UPDATE/DELETE)
+    DB-->>H: resultado (linhas)
+    H-->>R: entidade (Model) já populada, com relacionamentos resolvidos
+    R-->>S: entidade
+
+    Note over S: converte entidade em DTO
+
+    S-->>C: DTO de resposta
+    C-->>Cliente: ResponseEntity (JSON)

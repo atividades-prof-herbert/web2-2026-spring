@@ -2,6 +2,7 @@ package br.edu.ifpr.casalapp.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -9,16 +10,16 @@ import org.springframework.stereotype.Service;
 import br.edu.ifpr.casalapp.dto.CasaRequestDTO;
 import br.edu.ifpr.casalapp.dto.CasaResponseDTO;
 import br.edu.ifpr.casalapp.model.Casa;
+import br.edu.ifpr.casalapp.repository.CasaRepository;
 
 @Service
 public class CasaService {
 
-    private int proximoId = 3;
+    private final CasaRepository casaRepository;
 
-    private final List<Casa> casas = new ArrayList<>(List.of(
-            new Casa(1, "Casa da Praia", "CONVITE-1"),
-            new Casa(2, "Apartamento Centro", "CONVITE-2")
-    ));
+    public CasaService(CasaRepository casaRepository) {
+        this.casaRepository = casaRepository;
+    }
 
     private CasaResponseDTO toResponse(Casa casa) {
         return new CasaResponseDTO(casa.getId(), casa.getNome(), casa.getCodigoConvite());
@@ -31,7 +32,7 @@ public class CasaService {
     public List<CasaResponseDTO> listar() {
         List<CasaResponseDTO> resultado = new ArrayList<>();
 
-        for (Casa casa : casas) {
+        for (Casa casa : casaRepository.findAll()) {
             resultado.add(toResponse(casa));
         }
 
@@ -39,54 +40,49 @@ public class CasaService {
     }
 
     public CasaResponseDTO buscarPorId(int id) {
-        for (Casa casa : casas) {
-            if (casa.getId() == id) {
-                return toResponse(casa);
-            }
+        Optional<Casa> casaOpt = casaRepository.findById(id);
+        if (casaOpt.isPresent()) {
+            return toResponse(casaOpt.get());
         }
         return null;
     }
 
     public CasaResponseDTO criar(CasaRequestDTO request) {
-        Casa nova = new Casa(proximoId, request.nome(), gerarCodigoConvite());
-        proximoId++;
-        casas.add(nova);
-        return toResponse(nova);
+        Casa nova = new Casa(0, request.nome(), gerarCodigoConvite());
+        Casa salva = casaRepository.save(nova);
+        return toResponse(salva);
     }
 
     public CasaResponseDTO atualizar(int id, CasaRequestDTO request) {
-        for (int i = 0; i < casas.size(); i++) {
-            if (casas.get(i).getId() == id) {
-                Casa atualizada = new Casa(id, request.nome(), casas.get(i).getCodigoConvite());
-                casas.set(i, atualizada);
-                return toResponse(atualizada);
-            }
+        Optional<Casa> existente = casaRepository.findById(id);
+        if (existente.isEmpty()) {
+            return null;
         }
-        return null;
+
+        Casa atualizada = new Casa(id, request.nome(), existente.get().getCodigoConvite());
+        Casa salva = casaRepository.save(atualizada);
+        return toResponse(salva);
     }
 
     public CasaResponseDTO atualizarParcial(int id, CasaRequestDTO request) {
-        for (int i = 0; i < casas.size(); i++) {
-            if (casas.get(i).getId() == id) {
-                Casa existente = casas.get(i);
-
-                String novoNome = request.nome() != null ? request.nome() : existente.getNome();
-
-                Casa atualizada = new Casa(id, novoNome, existente.getCodigoConvite());
-                casas.set(i, atualizada);
-                return toResponse(atualizada);
-            }
+        Optional<Casa> existenteOpt = casaRepository.findById(id);
+        if (existenteOpt.isEmpty()) {
+            return null;
         }
-        return null;
+
+        Casa existente = existenteOpt.get();
+        String novoNome = request.nome() != null ? request.nome() : existente.getNome();
+
+        Casa atualizada = new Casa(id, novoNome, existente.getCodigoConvite());
+        Casa salva = casaRepository.save(atualizada);
+        return toResponse(salva);
     }
 
     public boolean deletar(int id) {
-        for (Casa casa : casas) {
-            if (casa.getId() == id) {
-                casas.remove(casa);
-                return true;
-            }
+        if (!casaRepository.existsById(id)) {
+            return false;
         }
-        return false;
+        casaRepository.deleteById(id);
+        return true;
     }
 }
