@@ -26,6 +26,7 @@ web2-2026-spring/
 | `aula-05-spring-service` | Camada de `service/`: regra de visibilidade entre `controller`, `service`, `model` e `dto`, anotação `@Service`, injeção de dependência por construtor vs `@Autowired`, `CategoriaService` centralizando dados e conversão para DTO. Exercício: entidade `Casa` (UC-5) relacionada a `Categoria` via `casaId`, e `TransacaoService` resolvendo o join via `CategoriaService` |
 | `aula-06-model-orm1` | ORM  |
 | `aula-07-model-persistence` | Camada de `repository/` |
+| `aula-08-spring-data` | Spring Data JPA: anotações de entidade (`@Entity`, `@Id`, `@GeneratedValue`, `@ManyToOne`, `@JoinColumn`), `JpaRepository` substituindo o `repository/` escrito à mão, persistência real em MySQL, `ddl-auto` e seus limites como ferramenta de migração |
 
 ## Pré-requisitos
 
