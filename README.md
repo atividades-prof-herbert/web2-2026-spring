@@ -27,6 +27,7 @@ web2-2026-spring/
 | `aula-06-model-orm1` | ORM  |
 | `aula-07-model-persistence` | Camada de `repository/` |
 | `aula-08-spring-data` | Spring Data JPA: anotações de entidade (`@Entity`, `@Id`, `@GeneratedValue`, `@ManyToOne`, `@JoinColumn`), `JpaRepository` substituindo o `repository/` escrito à mão, persistência real em MySQL, `ddl-auto` e seus limites como ferramenta de migração |
+| `aula-09-spring-validation-frontend` | `casalapp-frontend/`: front estático (HTML + Bootstrap + JS puro) separado em camadas `api/` e `pages/`, integrado via `fetch`; CORS liberado no backend; validação de request com Bean Validation (`@NotBlank`, `@NotNull`, `@Positive`, `@Email`) aplicada via `@Valid` em `POST`/`PUT`; documentação da API com springdoc-openapi (Swagger UI); nova entidade `Usuario` associada a `Casa`, preparando o modelo de dados para autenticação (sem implementar autenticação) |
 
 ## Pré-requisitos
 
