@@ -3,6 +3,8 @@ package br.edu.ifpr.casalapp.controller;
 import br.edu.ifpr.casalapp.dto.CategoriaRequestDTO;
 import br.edu.ifpr.casalapp.dto.CategoriaResponseDTO;
 import br.edu.ifpr.casalapp.service.CategoriaService;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +19,7 @@ public class CategoriaController {
         this.categoriaService = categoriaService;
     }
 
+    @Operation(summary = "Lista todas as categorias")
     @GetMapping("/categorias")
     public List<CategoriaResponseDTO> listarCategorias() {
         return categoriaService.listar();
@@ -32,8 +35,9 @@ public class CategoriaController {
         return ResponseEntity.notFound().build();
     }
 
+    @Operation(summary = "Cria uma categoria vinculada a uma casa existente")
     @PostMapping("/categorias")
-    public ResponseEntity<CategoriaResponseDTO> criarCategoria(@RequestBody CategoriaRequestDTO request) {
+    public ResponseEntity<CategoriaResponseDTO> criarCategoria(@Valid @RequestBody CategoriaRequestDTO request) {
         CategoriaResponseDTO nova = categoriaService.criar(request);
         return ResponseEntity.status(201).body(nova);
     }
@@ -41,7 +45,7 @@ public class CategoriaController {
     @PutMapping("/categorias/{id}")
     public ResponseEntity<CategoriaResponseDTO> atualizarCategoria(
             @PathVariable int id,
-            @RequestBody CategoriaRequestDTO request) {
+            @Valid @RequestBody CategoriaRequestDTO request) {
 
         CategoriaResponseDTO atualizada = categoriaService.atualizar(id, request);
 

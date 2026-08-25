@@ -3,6 +3,8 @@ package br.edu.ifpr.casalapp.controller;
 import br.edu.ifpr.casalapp.dto.TransacaoRequestDTO;
 import br.edu.ifpr.casalapp.dto.TransacaoResponseDTO;
 import br.edu.ifpr.casalapp.service.TransacaoService;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +19,7 @@ public class TransacaoController {
         this.transacaoService = transacaoService;
     }
 
+    @Operation(summary = "Lista todas as transações")
     @GetMapping("/transacoes")
     public List<TransacaoResponseDTO> listarTransacoes() {
         return transacaoService.listar();
@@ -32,8 +35,9 @@ public class TransacaoController {
         return ResponseEntity.notFound().build();
     }
 
+    @Operation(summary = "Cria uma transação vinculada a uma categoria existente")
     @PostMapping("/transacoes")
-    public ResponseEntity<TransacaoResponseDTO> criarTransacao(@RequestBody TransacaoRequestDTO request) {
+    public ResponseEntity<TransacaoResponseDTO> criarTransacao(@Valid @RequestBody TransacaoRequestDTO request) {
         TransacaoResponseDTO nova = transacaoService.criar(request);
         return ResponseEntity.status(201).body(nova);
     }
@@ -41,7 +45,7 @@ public class TransacaoController {
     @PutMapping("/transacoes/{id}")
     public ResponseEntity<TransacaoResponseDTO> atualizarTransacao(
             @PathVariable int id,
-            @RequestBody TransacaoRequestDTO request) {
+            @Valid @RequestBody TransacaoRequestDTO request) {
 
         TransacaoResponseDTO atualizada = transacaoService.atualizar(id, request);
 

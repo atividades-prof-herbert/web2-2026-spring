@@ -1,3 +1,7 @@
 package br.edu.ifpr.casalapp.dto;
 
-public record CasaRequestDTO(String nome) {}
+import jakarta.validation.constraints.NotBlank;
+
+public record CasaRequestDTO(
+        @NotBlank(message = "nome é obrigatório") String nome) {
+}

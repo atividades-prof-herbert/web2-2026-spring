@@ -3,6 +3,8 @@ package br.edu.ifpr.casalapp.controller;
 import br.edu.ifpr.casalapp.dto.CasaRequestDTO;
 import br.edu.ifpr.casalapp.dto.CasaResponseDTO;
 import br.edu.ifpr.casalapp.service.CasaService;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +19,7 @@ public class CasaController {
         this.casaService = casaService;
     }
 
+    @Operation(summary = "Lista todas as casas")
     @GetMapping("/casas")
     public List<CasaResponseDTO> listarCasas() {
         return casaService.listar();
@@ -32,8 +35,9 @@ public class CasaController {
         return ResponseEntity.notFound().build();
     }
 
+    @Operation(summary = "Cria uma casa e gera o código de convite automaticamente")
     @PostMapping("/casas")
-    public ResponseEntity<CasaResponseDTO> criarCasa(@RequestBody CasaRequestDTO request) {
+    public ResponseEntity<CasaResponseDTO> criarCasa(@Valid @RequestBody CasaRequestDTO request) {
         CasaResponseDTO nova = casaService.criar(request);
         return ResponseEntity.status(201).body(nova);
     }
@@ -41,7 +45,7 @@ public class CasaController {
     @PutMapping("/casas/{id}")
     public ResponseEntity<CasaResponseDTO> atualizarCasa(
             @PathVariable int id,
-            @RequestBody CasaRequestDTO request) {
+            @Valid @RequestBody CasaRequestDTO request) {
 
         CasaResponseDTO atualizada = casaService.atualizar(id, request);
 
