@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant BOOT as Spring Boot (subida da aplicação)
+    participant SD as Spring Data JPA
+    participant I as interface UsuarioRepository
+    participant PT as Analisador do nome do método
+    participant PROXY as Proxy gerado em memória
+    participant CTX as Contexto de beans
+    participant AS as AuthService
+
+    Note over BOOT,CTX: tudo isto acontece UMA vez, antes de a aplicação<br/>atender a primeira requisição
+
+    BOOT->>SD: encontra as interfaces que estendem JpaRepository
+    SD->>I: lê os parâmetros genéricos
+    I-->>SD: entidade Usuario, id do tipo Integer
+
+    SD->>I: lista os métodos declarados
+    I-->>SD: findByEmail, existsByEmail
+
+    loop para cada método declarado
+        SD->>PT: interprete este nome
+        Note over PT: quebra o nome no primeiro By<br/>find + By + Email<br/>procura a property email em Usuario
+        alt a property existe
+            PT-->>SD: consulta pronta<br/>SELECT u FROM Usuario u WHERE u.email = ?1
+        else a property não existe
+            PT--)BOOT: QueryCreationException<br/>a aplicação não sobe
+        end
+    end
+
+    SD->>PROXY: cria a implementação da interface
+    Note over PROXY: métodos herdados vêm do molde JpaRepository<br/>métodos declarados executam as consultas derivadas
+    SD->>CTX: registra o proxy como bean
+    CTX->>AS: injeta o bean no construtor
+
+    Note over AS,PROXY: em tempo de execução, chamar findByEmail<br/>apenas executa a consulta já traduzida

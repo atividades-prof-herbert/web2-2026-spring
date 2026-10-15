@@ -1,5 +1,6 @@
 package br.edu.ifpr.casalapp.controller;
 
+import br.edu.ifpr.casalapp.dto.ErroResponseDTO;
 import br.edu.ifpr.casalapp.dto.UsuarioRequestDTO;
 import br.edu.ifpr.casalapp.dto.UsuarioResponseDTO;
 import br.edu.ifpr.casalapp.service.UsuarioService;
@@ -35,10 +36,15 @@ public class UsuarioController {
         return ResponseEntity.notFound().build();
     }
 
-    @Operation(summary = "Cria um usuário vinculado a uma casa existente")
+    @Operation(summary = "Cria um usuário vinculado a uma casa existente, recusando email já cadastrado")
     @PostMapping("/usuarios")
-    public ResponseEntity<UsuarioResponseDTO> criarUsuario(@Valid @RequestBody UsuarioRequestDTO request) {
+    public ResponseEntity<Object> criarUsuario(@Valid @RequestBody UsuarioRequestDTO request) {
         UsuarioResponseDTO novo = usuarioService.criar(request);
+
+        if (novo == null) {
+            return ResponseEntity.status(409).body(new ErroResponseDTO("já existe um usuário com este email"));
+        }
+
         return ResponseEntity.status(201).body(novo);
     }
 

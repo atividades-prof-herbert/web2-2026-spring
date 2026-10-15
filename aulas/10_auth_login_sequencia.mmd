@@ -1,0 +1,48 @@
+sequenceDiagram
+    actor U as Usuário
+    participant P as pages/login.js
+    participant API as api/authApi.js
+    participant AC as AuthController
+    participant V as Hibernate Validator
+    participant AS as AuthService
+    participant R as UsuarioRepository (proxy do Spring Data)
+    participant H as Hibernate
+    participant DB as MySQL (casal-app-web2)
+
+    U->>P: submit do formulário
+    Note over P: lê os campos da tela<br/>e monta o objeto credenciais
+    P->>API: login(credenciais)
+    API->>AC: POST /auth/login<br/>{"email": "...", "senha": "..."}
+
+    AC->>V: valida LoginRequestDTO (@Valid)
+
+    alt request malformado
+        V--)AC: restrição violada
+        AC--)API: 400 Bad Request
+        Note over AC: o corpo do método login<br/>não chega a executar
+    else request bem formado
+        V-->>AC: ok
+        AC->>AS: autenticar(LoginRequestDTO)
+        AS->>R: findByEmail(email)
+        R->>H: consulta derivada do nome do método
+        H->>DB: SELECT ... FROM usuario WHERE email = ?
+        DB-->>H: zero ou uma linha
+        H-->>R: Usuario (entidade populada)
+        R-->>AS: Optional de Usuario (vazio ou com a entidade)
+
+        alt email não cadastrado ou senha diferente
+            Note over AS: isEmpty() ou<br/>!getSenha().equals(request.senha())
+            AS-->>AC: null
+            AC--)API: 401 + ErroResponseDTO
+        else credencial confere
+            Note over AS: monta LoginResponseDTO<br/>a senha fica fora do DTO
+            AS-->>AC: LoginResponseDTO
+            AC-->>API: 200 + JSON
+        end
+    end
+
+    Note over API: o fetch não rejeita a Promise em 401,<br/>por isso a camada api devolve ok e status
+    API-->>P: {ok, status, corpo}
+    P->>U: painel de boas vindas ou alerta de erro
+
+    Note over AC,DB: terminada a resposta, o servidor esquece<br/>por completo quem acabou de entrar

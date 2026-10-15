@@ -57,6 +57,10 @@ public class UsuarioService {
     }
 
     public UsuarioResponseDTO criar(UsuarioRequestDTO request) {
+        if (usuarioRepository.existsByEmail(request.email())) {
+            return null;
+        }
+
         Casa casa = null;
         Optional<Casa> casaOpt = casaRepository.findById(request.casaId());
         if (casaOpt.isPresent()) {

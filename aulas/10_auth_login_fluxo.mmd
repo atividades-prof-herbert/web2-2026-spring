@@ -1,0 +1,39 @@
+flowchart TD
+    A([Usuário abre login.html]) --> B[Preenche email e senha<br/>e envia o formulário]
+    B --> C[pages/login.js lê os campos<br/>e chama api/authApi.js]
+    C --> D[["POST /auth/login<br/>credencial no corpo da requisição"]]
+
+    D --> E{"@Valid<br/>email preenchido e válido?<br/>senha preenchida?"}
+    E -- não --> F[/"400 Bad Request<br/>o método do controller nem executa"/]
+
+    E -- sim --> G["AuthService.autenticar<br/>usuarioRepository.findByEmail(email)"]
+    G --> H{Existe usuário<br/>com este email?}
+    H -- não --> I["retorna null"]
+
+    H -- sim --> J{"usuario.getSenha().equals(senha)"}
+    J -- não --> I
+    J -- sim --> K["Monta LoginResponseDTO<br/>id, nome, email, casa<br/>sem a senha"]
+
+    I --> L[/"401 Unauthorized<br/>mensagem genérica:<br/>email ou senha inválidos"/]
+    K --> M[/"200 OK<br/>LoginResponseDTO em JSON"/]
+
+    F --> N[pages/login.js mostra o alerta de erro]
+    L --> N
+    N --> B
+
+    M --> O["pages/login.js guarda a resposta<br/>na variável usuarioLogado"]
+    O --> P([Painel mostra quem entrou])
+
+    P --> Q{"Usuário recarrega a página<br/>ou navega para outra tela?"}
+    Q -- sim --> R["A variável usuarioLogado morre<br/>com a página: volta a null"]
+    R --> A
+    Q -- não --> P
+
+    S["Rotas /casas, /categorias e /transacoes<br/>continuam respondendo a qualquer um,<br/>sem exigir login"]
+
+    classDef falha fill:#f8d7da,stroke:#842029,color:#000
+    classDef ok fill:#d1e7dd,stroke:#0f5132,color:#000
+    classDef aberto fill:#fff3cd,stroke:#664d03,color:#000,stroke-dasharray: 5 5
+    class F,L,I,R falha
+    class K,M,O,P ok
+    class S aberto
