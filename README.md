@@ -10,9 +10,11 @@ Aplicativo mobile de gestão financeira compartilhada para casais. Permite regis
 
 ```
 web2-2026-spring/
-├── aulas/          # Material didático das aulas
-├── casalapp/       # Projeto Spring Boot
-└── documentacao/   # Visão geral e casos de uso do Ca$alApp
+├── aulas/              # Material didático das aulas
+│   └── atividades/     # Exercícios e atividades propostas em cada aula
+├── casalapp/           # Projeto Spring Boot
+├── casalapp-frontend/  # Frontend estático consumindo a API
+└── documentacao/       # Visão geral e casos de uso do Ca$alApp
 ```
 
 ## Conteúdo das aulas
@@ -28,6 +30,7 @@ web2-2026-spring/
 | `aula-07-model-persistence` | Camada de `repository/` |
 | `aula-08-spring-data` | Spring Data JPA: anotações de entidade (`@Entity`, `@Id`, `@GeneratedValue`, `@ManyToOne`, `@JoinColumn`), `JpaRepository` substituindo o `repository/` escrito à mão, persistência real em MySQL, `ddl-auto` e seus limites como ferramenta de migração |
 | `aula-09-spring-validation-frontend` | `casalapp-frontend/`: front estático (HTML + Bootstrap + JS puro) separado em camadas `api/` e `pages/`, integrado via `fetch`; CORS liberado no backend; validação de request com Bean Validation (`@NotBlank`, `@NotNull`, `@Positive`, `@Email`) aplicada via `@Valid` em `POST`/`PUT`; documentação da API com springdoc-openapi (Swagger UI); nova entidade `Usuario` associada a `Casa`, preparando o modelo de dados para autenticação (sem implementar autenticação) |
+| `aula-10-auth-login` | Autenticação, parte 1: fluxo de login sem proteção (propositalmente inseguro). Rota `POST /auth/login` com `AuthController`/`AuthService`, os métodos mágicos do `repository` (consultas derivadas do nome do método: gramática, navegação por relacionamentos, tipos de retorno, erro na subida da aplicação e a saída via `@Query`/JPQL), aplicados em `findByEmail` e `existsByEmail`, email como identificador único (`@Column(unique = true)`) e o limite do `ddl-auto` diante de dados antigos, `LoginRequestDTO`/`LoginResponseDTO`/`ErroResponseDTO`, `401 Unauthorized` com mensagem genérica (enumeração de usuários) e `409 Conflict` no cadastro de email repetido, tela `login.html` com camadas `api/authApi.js` e `pages/login.js` guardando o usuário logado apenas em memória; diagrama de atividade do fluxo de autenticação e diagramas de sequência da requisição de login e da geração do proxy do repository |
 
 ## Pré-requisitos
 
