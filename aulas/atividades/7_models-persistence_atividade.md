@@ -2,7 +2,7 @@
 
 Na aula, refatoramos **só o `TransacaoService`** para usar a camada `repository/`. `CategoriaService` e `CasaService` continuam exatamente como estavam na aula 6: cada um guarda sua própria `List` em memória e faz seu próprio "JOIN manual".
 
-Isso deixou um problema pendente, apontado na seção 3.2 de [7_models-persistence.md](7_models-persistence.md): hoje existem **duas listas de categoria** (uma em `CategoriaService`, outra em `CategoriaRepository`) e **duas listas de casa** (uma em `CasaService`, outra em `CasaRepository`), sem nenhuma relação entre elas. Uma categoria criada via `POST /categorias` não aparece para o `TransacaoService`, porque ele lê de uma lista diferente.
+Isso deixou um problema pendente, apontado na seção 3.2 de [7_models-persistence.md](../7_models-persistence.md): hoje existem **duas listas de categoria** (uma em `CategoriaService`, outra em `CategoriaRepository`) e **duas listas de casa** (uma em `CasaService`, outra em `CasaRepository`), sem nenhuma relação entre elas. Uma categoria criada via `POST /categorias` não aparece para o `TransacaoService`, porque ele lê de uma lista diferente.
 
 ## O que fazer
 

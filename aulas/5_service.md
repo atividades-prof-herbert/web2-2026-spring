@@ -13,7 +13,7 @@ Nesta aula:
 5. Apontamos os problemas concretos do projeto que motivam essa camada.
 6. Implementamos o `CategoriaService`, movendo a lógica de acesso a dados **e** a conversão para DTO para fora do controller.
 
-A `Transacao` **não** ganhou service nesta aula. Isso fica como exercício em [5_service_exercicio.md](5_service_exercicio.md).
+A `Transacao` **não** ganhou service nesta aula. Isso fica como exercício em [5_service_exercicio.md](atividades/5_service_exercicio.md).
 
 ---
 
@@ -379,4 +379,4 @@ A API se comporta exatamente como antes. A diferença é só interna: a lógica 
 
 ## Exercício
 
-O exercício desta aula (criar o `TransacaoService`) está em [5_service_exercicio.md](5_service_exercicio.md).
+O exercício desta aula (criar o `TransacaoService`) está em [5_service_exercicio.md](atividades/5_service_exercicio.md).

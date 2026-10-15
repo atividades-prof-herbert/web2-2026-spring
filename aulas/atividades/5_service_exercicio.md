@@ -2,7 +2,7 @@
 
 O exercício tem duas partes. Na primeira, você implementa um caso de uso novo (UC-5, `Gerenciar Casa`) e isso obriga a refatorar tudo o que já existe no projeto, porque toda categoria passa a pertencer a uma Casa. Na segunda parte, você faz o que já era esperado desde o início da aula: criar o `TransacaoService`.
 
-Consulte [documentacao/1_casos_uso.md](../documentacao/1_casos_uso.md) (UC 5) e [documentacao/diagrama_er.mmd](../documentacao/diagrama_er.mmd) antes de começar.
+Consulte [documentacao/1_casos_uso.md](../../documentacao/1_casos_uso.md) (UC 5) e [documentacao/diagrama_er.mmd](../../documentacao/diagrama_er.mmd) antes de começar.
 
 ---
 
