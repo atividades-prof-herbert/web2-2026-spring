@@ -46,99 +46,37 @@ decide o que fazer com ele. Nenhum dos três substitui os outros dois.
 
 Comecemos pelo problema mais grave e, felizmente, o de solução mais estabelecida.
 
-### 2.1 O erro de pensar em "criptografar a senha"
+### 2.1 Verificar a senha sem armazenar a senha
 
-A reação intuitiva de quem vê uma senha legível no banco é dizer que ela precisa ser
-criptografada. A intuição aponta na direção certa e escolhe a ferramenta errada, por um motivo
-que vale enunciar com precisão.
+A percepção que organiza toda esta seção é esta: **o sistema não precisa saber a sua senha**.
+Ele só precisa responder a uma pergunta de sim ou não, "a senha que você acabou de digitar é a
+mesma de antes?". Essa pergunta pode ser respondida sem nunca guardar a senha, e é isso que
+uma função de hash permite, porque dela não existe caminho de volta.
 
-| Ferramenta | O que ela faz | Tem volta? |
-|---|---|---|
-| **Cifragem** (`AES`, por exemplo) | Transforma um texto em outro, usando uma chave. | **Sim.** Quem tem a chave recupera o texto original. Essa é a finalidade. |
-| **Hash** (`BCrypt`, por exemplo) | Transforma um texto em uma sequência de tamanho fixo, sem chave. | **Não.** Não existe operação inversa, para ninguém. |
+A consequência prática é forte e vale enunciar: depois desta aula, **nem nós conseguimos
+descobrir a senha de um usuário**. Essa impossibilidade é a prova de que o dado está
+protegido, e explica por que um sistema sério nunca envia a sua senha por email quando você
+clica em "esqueci minha senha": ele não tem como, então envia um link para você cadastrar
+outra.
 
-Se a senha fosse cifrada, a aplicação precisaria guardar a chave para poder conferir o login, e
-essa chave estaria no servidor, provavelmente em um arquivo de configuração ao lado da string
-de conexão do banco. Quem conseguisse ler o banco muito provavelmente conseguiria ler a chave
-também, e voltaríamos ao ponto de partida.
+O algoritmo escolhido aqui é o **BCrypt**, que é a recomendação corrente para senhas. Duas
+características dele importam para o nosso código, e são as únicas que vamos usar:
 
-A percepção central é esta: **o sistema não precisa saber a sua senha**. Ele só precisa
-responder a uma pergunta de sim ou não, "a senha que você acabou de digitar é a mesma de
-antes?". Essa pergunta pode ser respondida sem nunca armazenar a senha, e é isso que o hash
-permite. Guardar a senha, mesmo cifrada, é guardar um poder que a aplicação não precisa ter.
+1. **Ele é lento de propósito.** Em senhas, lentidão é requisito e não defeito, porque encarece
+   a vida de quem tentar adivinhar senhas em massa.
+2. **Ele sorteia um *salt* aleatório por senha** e o guarda dentro do próprio resultado. Por
+   isso, cadastrar a mesma senha duas vezes produz valores diferentes. Nos testes desta aula,
+   Ana e Bia foram cadastradas ambas com `1234`, e o banco guardou
+   `$2a$10$nRle1Jxk...` e `$2a$10$ZMdTw11H...`. Isso não é erro, e tem uma consequência direta
+   na seção 2.4.
 
-### 2.2 O que é uma função de hash
+> **O que esta aula não discute.** A diferença entre cifrar e aplicar hash, as propriedades
+> formais de uma função de hash, o papel do salt, o fator de custo e a comparação entre
+> famílias de algoritmos são assunto da disciplina de criptografia, e é lá que eles devem ser
+> estudados. Aqui tratamos do que é específico da nossa disciplina: onde essa ferramenta entra
+> em uma aplicação web, qual camada a aplica e que erros de uso ela permite cometer.
 
-Uma função de hash criptográfico recebe um texto de qualquer tamanho e devolve uma sequência de
-tamanho fixo, com quatro propriedades que nos interessam:
-
-1. **Determinística.** O mesmo texto de entrada produz sempre a mesma saída. Sem isso, nenhuma
-   verificação de login seria possível.
-2. **Unidirecional.** Dada a saída, não há caminho de volta até a entrada, a não ser tentar
-   entradas uma por uma até acertar.
-3. **Efeito avalanche.** Mudar um único caractere da entrada muda a saída inteira, de forma
-   imprevisível. Hashes de senhas parecidas não se parecem.
-4. **Resistente a colisão.** É inviável encontrar dois textos diferentes com o mesmo hash.
-
-Dessas quatro, a segunda é a que resolve o nosso problema, e vale dizer com clareza o que ela
-significa na prática: depois desta aula, **nem nós conseguimos descobrir a senha de um
-usuário**. Essa impossibilidade é a prova de que o dado está protegido, e explica por que um
-sistema sério nunca envia a sua senha por email quando você clica em "esqueci minha senha":
-ele não tem como, então envia um link para você cadastrar outra.
-
-### 2.3 Por que não usar `SHA-256`
-
-Quem já ouviu falar de hash provavelmente conhece a família `SHA`. Ela é excelente para
-verificar a integridade de um arquivo e inadequada para senhas, por duas razões.
-
-A primeira é a **velocidade**. `SHA-256` foi projetado para ser rápido, e hardware moderno
-calcula bilhões desses hashes por segundo. Para um invasor que roubou a tabela de usuários,
-velocidade é exatamente o recurso que ele quer: ele pode testar a lista de senhas mais comuns
-contra todos os hashes em pouquíssimo tempo. Em senhas, portanto, **lentidão é requisito**, não
-defeito.
-
-A segunda é a **ausência de sal**. Como a função é determinística, dois usuários com a senha
-`1234` teriam hashes idênticos no banco. Isso vaza informação (dá para ver quem usa a mesma
-senha que quem) e permite o uso de tabelas pré-calculadas, chamadas *rainbow tables*, que
-trazem o hash de bilhões de senhas comuns já computado. Contra uma tabela dessas, quebrar o
-hash deixa de ser cálculo e passa a ser consulta.
-
-O **sal** é a resposta: uma sequência aleatória, diferente para cada usuário, que entra no
-cálculo junto com a senha. Com sal, o hash de `1234` da Ana é diferente do hash de `1234` da
-Bia, nenhuma tabela pré-calculada serve, e o invasor é obrigado a atacar cada usuário
-separadamente.
-
-### 2.4 BCrypt
-
-O BCrypt resolve os dois problemas de uma vez e é a escolha desta aula. Ele sorteia um sal
-aleatório por senha, aplica a função repetidas vezes de propósito para ficar lenta, e guarda
-tudo em uma única `String` de 60 caracteres. Este é um valor real, copiado do banco depois de
-cadastrar a Ana com a senha `1234`:
-
-```
-$2a$10$nRle1JxkYsNx71y1oIRgHOY0Jvimz0aO709VhoUZszL13bGReJR.e
- ╰┬╯ ╰┬╯ ╰──────────┬─────────╯╰───────────────┬──────────────╯
-  │   │              │                          │
-  │   │              │                          └─ o hash propriamente dito
-  │   │              └─ o sal aleatório, 22 caracteres
-  │   └─ o custo: a função foi aplicada 2 elevado a 10 vezes, isto é, 1024
-  └─ a versão do algoritmo
-```
-
-Três consequências desse formato merecem atenção.
-
-1. **O sal fica guardado junto com o hash, em texto claro, e isso está correto.** O sal não é
-   segredo, a senha é. O papel do sal é ser diferente para cada usuário, não ser oculto. Sem
-   guardá-lo não haveria como repetir o cálculo na hora de conferir o login.
-2. **O custo também fica guardado.** Isso permite aumentar o custo no futuro, à medida que os
-   computadores ficam mais rápidos, sem invalidar os hashes antigos: cada linha carrega a
-   informação de como foi calculada.
-3. **Cadastrar a mesma senha duas vezes produz hashes diferentes.** Durante os testes desta
-   aula, as usuárias Ana e Bia foram cadastradas ambas com `1234`, e o banco guardou
-   `$2a$10$nRle1Jxk...` e `$2a$10$ZMdTw11H...`. Isso não é erro, é o sal funcionando, e tem uma
-   consequência direta na próxima subseção.
-
-### 2.5 A dependência, e por que não o starter completo
+### 2.2 A dependência, e por que não o starter completo
 
 O BCrypt do ecossistema Spring vive na biblioteca `spring-security-crypto`, que é a parte
 puramente criptográfica do Spring Security:
@@ -161,7 +99,7 @@ apenas o algoritmo de hash, bem testado, e deixa o resto por nossa conta.
 A dependência não tem `<version>`, pelo mesmo motivo das demais: o `spring-boot-starter-parent`
 já declara a versão compatível.
 
-### 2.6 O bean `PasswordEncoder`
+### 2.3 O bean `PasswordEncoder`
 
 ```java
 @Configuration
@@ -188,25 +126,25 @@ não `BCryptPasswordEncoder`, a implementação. Isso faz com que o `AuthService
 BCrypt por outro algoritmo no futuro é mudar esta única linha, e nenhum `service` precisa saber.
 É a mesma ideia que a aula 5 aplicou à injeção por construtor, agora em outro nível.
 
-### 2.7 `encode` e `matches`
+### 2.4 `encode` e `matches`
 
 A interface `PasswordEncoder` tem dois métodos, e a distinção entre eles é o coração desta
 seção.
 
 | Método | Entrada | Saída | Quando é chamado |
 |---|---|---|---|
-| `encode(senha)` | A senha em texto puro. | A `String` de 60 caracteres, com sal novo. | No cadastro e na troca de senha. |
+| `encode(senha)` | A senha em texto puro. | A `String` de 60 caracteres, com salt novo. | No cadastro e na troca de senha. |
 | `matches(senha, hashGuardado)` | A senha em texto puro e o hash do banco. | `boolean`. | No login. |
 
 A pergunta que todo estudante faz neste ponto é por que existe um `matches`, em vez de
 simplesmente aplicar `encode` na senha recebida e comparar o resultado com o que está no banco,
-com o `equals` da aula 10. A resposta está na seção 2.4: como `encode` sorteia um sal novo a
+com o `equals` da aula 10. A resposta está na seção 2.1: como `encode` sorteia um salt novo a
 cada chamada, o hash que ele produz agora **nunca** será igual ao que foi gravado no cadastro.
 Comparar dois `encode` com `equals` produziria um sistema em que ninguém consegue entrar, e o
 defeito seria dificílimo de diagnosticar, porque o código parece certo.
 
-O que o `matches` faz é o que a seção 2.4 preparou: ele lê o sal de dentro do hash guardado,
-refaz o cálculo com aquele sal específico sobre a senha recebida, e compara os resultados. O
+O que o `matches` faz é o que a seção 2.1 antecipou: ele lê o salt de dentro do hash guardado,
+refaz o cálculo com aquele salt específico sobre a senha recebida, e compara os resultados. O
 hash guardado é, ao mesmo tempo, o dado e a receita de como verificá-lo.
 
 O diagrama abaixo mostra os dois caminhos, o do cadastro e o do login, lado a lado. Ele também
@@ -217,8 +155,8 @@ flowchart TD
     subgraph CAD["Cadastro: POST /usuarios"]
         A([Cliente envia senha em texto puro]) --> B["UsuarioService.criar"]
         B --> C["passwordEncoder.encode(senha)"]
-        C --> D["BCrypt sorteia um sal aleatório<br/>e aplica a função 2 elevado a 10 vezes"]
-        D --> E["String de 60 caracteres<br/>$2a$10$sal+hash"]
+        C --> D["BCrypt sorteia um salt aleatório<br/>e aplica a função lenta de propósito"]
+        D --> E["String de 60 caracteres<br/>com o salt embutido"]
         E --> F[("coluna usuario.senha_hash")]
         A --> G["a senha em texto puro existe<br/>apenas na memória do servidor,<br/>durante esta requisição"]
     end
@@ -228,8 +166,8 @@ flowchart TD
         I --> J["findByEmail"]
         J --> K[("lê usuario.senha_hash")]
         K --> L["passwordEncoder.matches(senha, senhaHash)"]
-        L --> M["extrai o sal de dentro do hash armazenado"]
-        M --> N["aplica a mesma função com aquele sal<br/>sobre a senha recebida"]
+        L --> M["extrai o salt de dentro do hash armazenado"]
+        M --> N["aplica a mesma função com aquele salt<br/>sobre a senha recebida"]
         N --> O{"os dois hashes<br/>são iguais?"}
         O -- não --> P[/"401<br/>email ou senha inválidos"/]
         O -- sim --> Q[/"emite token e responde 200"/]
@@ -252,7 +190,7 @@ processamento. O que deixa de existir é a senha **armazenada**. É por isso que
 da aula 10 continuam valendo e ganham mais sentido agora: a credencial vai no corpo de um
 `POST`, nunca na URL, e o `LoginResponseDTO` jamais a devolve.
 
-### 2.8 A entidade passa a dizer a verdade
+### 2.5 A entidade passa a dizer a verdade
 
 ```java
     @Column(name = "senha_hash", nullable = false)
@@ -270,7 +208,7 @@ são `getSenhaHash` e `setSenhaHash`. E repare que `UsuarioRequestDTO`, o DTO de
 verdade. A conversão de uma coisa na outra acontece no `service`, e é justamente a fronteira
 entre o DTO e a entidade que a aula 5 estabeleceu.
 
-### 2.9 Mais um encontro com o limite do `ddl-auto`
+### 2.6 Mais um encontro com o limite do `ddl-auto`
 
 Esta é a terceira aula consecutiva em que `spring.jpa.hibernate.ddl-auto=update` nos dá uma
 lição, e desta vez a mais severa. Ao subir a aplicação, o Hibernate vê uma coluna nova chamada
@@ -302,7 +240,7 @@ suficiente. Em uma turma, este é o momento de rodar a consulta antes e depois:
 SELECT id, nome, email, senha_hash FROM usuario;
 ```
 
-### 2.10 Onde o hash é gerado
+### 2.7 Onde o hash é gerado
 
 No `UsuarioService`, no único lugar por onde toda senha entra no sistema:
 
@@ -1318,7 +1256,7 @@ primeira parte da atividade.
 
 | Pergunta | Aula 10 | Aula 11 |
 |---|---|---|
-| O que está na coluna de senha? | A senha, legível. | Um hash BCrypt com sal, irreversível. |
+| O que está na coluna de senha? | A senha, legível. | Um hash BCrypt com salt, irreversível. |
 | Como o servidor sabe quem chama? | Não sabe. | Pelo token no cabeçalho `Authorization`. |
 | O que acontece ao recarregar a página? | O usuário perde o login. | A sessão continua, apoiada no `localStorage` e conferida no servidor. |
 | `GET /transacoes` sem credencial | `200` com tudo. | `401`. |
@@ -1410,7 +1348,7 @@ Documentação oficial dos recursos usados nesta aula.
    https://www.rfc-editor.org/rfc/rfc6750.html
 9. RFC 9110, HTTP Semantics, seção 11, autenticação HTTP e o cabeçalho `Authorization`:
    https://www.rfc-editor.org/rfc/rfc9110.html#name-http-authentication
-10. OWASP, Password Storage Cheat Sheet, por que BCrypt e não SHA:
+10. OWASP, Password Storage Cheat Sheet, recomendações de algoritmo para senhas:
     https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
 11. OWASP, Session Management Cheat Sheet, geração e expiração de identificadores de sessão:
     https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html

@@ -2,8 +2,8 @@ flowchart TD
     subgraph CAD["Cadastro: POST /usuarios"]
         A([Cliente envia senha em texto puro]) --> B["UsuarioService.criar"]
         B --> C["passwordEncoder.encode(senha)"]
-        C --> D["BCrypt sorteia um sal aleatório<br/>e aplica a função 2 elevado a 10 vezes"]
-        D --> E["String de 60 caracteres<br/>$2a$10$sal+hash"]
+        C --> D["BCrypt sorteia um salt aleatório<br/>e aplica a função lenta de propósito"]
+        D --> E["String de 60 caracteres<br/>com o salt embutido"]
         E --> F[("coluna usuario.senha_hash")]
         A --> G["a senha em texto puro existe<br/>apenas na memória do servidor,<br/>durante esta requisição"]
     end
@@ -13,8 +13,8 @@ flowchart TD
         I --> J["findByEmail"]
         J --> K[("lê usuario.senha_hash")]
         K --> L["passwordEncoder.matches(senha, senhaHash)"]
-        L --> M["extrai o sal de dentro do hash armazenado"]
-        M --> N["aplica a mesma função com aquele sal<br/>sobre a senha recebida"]
+        L --> M["extrai o salt de dentro do hash armazenado"]
+        M --> N["aplica a mesma função com aquele salt<br/>sobre a senha recebida"]
         N --> O{"os dois hashes<br/>são iguais?"}
         O -- não --> P[/"401<br/>email ou senha inválidos"/]
         O -- sim --> Q[/"emite token e responde 200"/]

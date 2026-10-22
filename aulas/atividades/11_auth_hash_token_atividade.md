@@ -34,7 +34,7 @@ protegidas? E o contrário?
 
 ## Parte 2: migrar o banco à mão
 
-A seção 2.9 da aula mostrou que o `ddl-auto=update` criou a coluna `senha_hash` e deixou a
+A seção 2.6 da aula mostrou que o `ddl-auto=update` criou a coluna `senha_hash` e deixou a
 coluna `senha` intacta, com as senhas antigas legíveis.
 
 - [ ] Antes de qualquer alteração, rode e registre o resultado:
@@ -47,8 +47,9 @@ SELECT id, nome, email, senha, senha_hash FROM usuario;
 - [ ] Cadastre dois usuários **com a mesma senha**, em casas diferentes, e compare os dois
       valores de `senha_hash`.
 
-Responda: por que os dois hashes são diferentes, se a senha é a mesma? Que informação um
-invasor obteria se eles fossem iguais?
+Responda: por que os dois hashes são diferentes, se a senha é a mesma? Que consequência isso
+tem para o código que confere o login, isto é, por que o `matches` é necessário e uma
+comparação com `equals` não serviria?
 
 ### Um erro provocado de propósito
 
@@ -61,7 +62,7 @@ operador ternário da aula 10 fazia.
 
 Responda: o `PATCH` devolveu erro? O login devolveu erro? Em que momento o defeito se tornou
 perceptível, e por que esse tipo de defeito é especialmente perigoso? Relacione com o que a
-seção 2.10 da aula diz sobre aplicar hash em um hash. Desfaça a alteração ao terminar.
+seção 2.7 da aula diz sobre aplicar hash em um hash. Desfaça a alteração ao terminar.
 
 ---
 
