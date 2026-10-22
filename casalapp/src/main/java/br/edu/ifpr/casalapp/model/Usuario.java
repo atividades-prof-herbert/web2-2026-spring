@@ -22,7 +22,8 @@ public class Usuario {
     @Column(unique = true, nullable = false)
     private String email;
 
-    private String senha;
+    @Column(name = "senha_hash", nullable = false)
+    private String senhaHash;
 
     @ManyToOne
     @JoinColumn(name = "casa_id")
@@ -31,11 +32,11 @@ public class Usuario {
     public Usuario() {
     }
 
-    public Usuario(int id, String nome, String email, String senha, Casa casa) {
+    public Usuario(int id, String nome, String email, String senhaHash, Casa casa) {
         this.id = id;
         this.nome = nome;
         this.email = email;
-        this.senha = senha;
+        this.senhaHash = senhaHash;
         this.casa = casa;
     }
 
@@ -59,12 +60,12 @@ public class Usuario {
         this.email = email;
     }
 
-    public String getSenha() {
-        return senha;
+    public String getSenhaHash() {
+        return senhaHash;
     }
 
-    public void setSenha(String senha) {
-        this.senha = senha;
+    public void setSenhaHash(String senhaHash) {
+        this.senhaHash = senhaHash;
     }
 
     public Casa getCasa() {

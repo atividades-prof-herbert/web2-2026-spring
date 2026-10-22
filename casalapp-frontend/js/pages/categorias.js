@@ -1,3 +1,6 @@
+exigirLogin();
+configurarBarraDeSessao();
+
 const formCategoria = document.getElementById("form-categoria");
 const campoId = document.getElementById("categoria-id");
 const campoNome = document.getElementById("categoria-nome");

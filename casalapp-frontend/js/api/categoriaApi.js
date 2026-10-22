@@ -1,31 +1,29 @@
 async function listarCategorias() {
-    const resposta = await fetch(API_BASE_URL + "/categorias");
+    const resposta = await requisicaoAutenticada("/categorias");
     return await resposta.json();
 }
 
 async function buscarCategoria(id) {
-    const resposta = await fetch(API_BASE_URL + "/categorias/" + id);
+    const resposta = await requisicaoAutenticada("/categorias/" + id);
     return await resposta.json();
 }
 
-async function criarCategoria(categoria) {
-    const resposta = await fetch(API_BASE_URL + "/categorias", {
+async function criarCategoria(dados) {
+    const resposta = await requisicaoAutenticada("/categorias", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(categoria)
+        body: JSON.stringify(dados)
     });
     return await resposta.json();
 }
 
-async function atualizarCategoria(id, categoria) {
-    const resposta = await fetch(API_BASE_URL + "/categorias/" + id, {
+async function atualizarCategoria(id, dados) {
+    const resposta = await requisicaoAutenticada("/categorias/" + id, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(categoria)
+        body: JSON.stringify(dados)
     });
     return await resposta.json();
 }
 
 async function deletarCategoria(id) {
-    await fetch(API_BASE_URL + "/categorias/" + id, { method: "DELETE" });
+    await requisicaoAutenticada("/categorias/" + id, { method: "DELETE" });
 }

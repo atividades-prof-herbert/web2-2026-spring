@@ -1,31 +1,29 @@
 async function listarTransacoes() {
-    const resposta = await fetch(API_BASE_URL + "/transacoes");
+    const resposta = await requisicaoAutenticada("/transacoes");
     return await resposta.json();
 }
 
 async function buscarTransacao(id) {
-    const resposta = await fetch(API_BASE_URL + "/transacoes/" + id);
+    const resposta = await requisicaoAutenticada("/transacoes/" + id);
     return await resposta.json();
 }
 
-async function criarTransacao(transacao) {
-    const resposta = await fetch(API_BASE_URL + "/transacoes", {
+async function criarTransacao(dados) {
+    const resposta = await requisicaoAutenticada("/transacoes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(transacao)
+        body: JSON.stringify(dados)
     });
     return await resposta.json();
 }
 
-async function atualizarTransacao(id, transacao) {
-    const resposta = await fetch(API_BASE_URL + "/transacoes/" + id, {
+async function atualizarTransacao(id, dados) {
+    const resposta = await requisicaoAutenticada("/transacoes/" + id, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(transacao)
+        body: JSON.stringify(dados)
     });
     return await resposta.json();
 }
 
 async function deletarTransacao(id) {
-    await fetch(API_BASE_URL + "/transacoes/" + id, { method: "DELETE" });
+    await requisicaoAutenticada("/transacoes/" + id, { method: "DELETE" });
 }

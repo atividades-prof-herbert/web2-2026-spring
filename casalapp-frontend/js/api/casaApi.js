@@ -1,31 +1,29 @@
 async function listarCasas() {
-    const resposta = await fetch(API_BASE_URL + "/casas");
+    const resposta = await requisicaoAutenticada("/casas");
     return await resposta.json();
 }
 
 async function buscarCasa(id) {
-    const resposta = await fetch(API_BASE_URL + "/casas/" + id);
+    const resposta = await requisicaoAutenticada("/casas/" + id);
     return await resposta.json();
 }
 
-async function criarCasa(casa) {
-    const resposta = await fetch(API_BASE_URL + "/casas", {
+async function criarCasa(dados) {
+    const resposta = await requisicaoAutenticada("/casas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(casa)
+        body: JSON.stringify(dados)
     });
     return await resposta.json();
 }
 
-async function atualizarCasa(id, casa) {
-    const resposta = await fetch(API_BASE_URL + "/casas/" + id, {
+async function atualizarCasa(id, dados) {
+    const resposta = await requisicaoAutenticada("/casas/" + id, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(casa)
+        body: JSON.stringify(dados)
     });
     return await resposta.json();
 }
 
 async function deletarCasa(id) {
-    await fetch(API_BASE_URL + "/casas/" + id, { method: "DELETE" });
+    await requisicaoAutenticada("/casas/" + id, { method: "DELETE" });
 }

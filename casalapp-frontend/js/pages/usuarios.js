@@ -1,3 +1,6 @@
+exigirLogin();
+configurarBarraDeSessao();
+
 const formUsuario = document.getElementById("form-usuario");
 const campoId = document.getElementById("usuario-id");
 const campoNome = document.getElementById("usuario-nome");

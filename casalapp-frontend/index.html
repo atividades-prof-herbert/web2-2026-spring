@@ -16,7 +16,8 @@
                 <li class="nav-item"><a class="nav-link" href="usuarios.html">Usuários</a></li>
                 <li class="nav-item"><a class="nav-link" href="categorias.html">Categorias</a></li>
                 <li class="nav-item"><a class="nav-link" href="transacoes.html">Transações</a></li>
-                <li class="nav-item"><a class="nav-link" href="login.html">Entrar</a></li>
+                <li class="nav-item"><span class="nav-link" id="sessao-nome"></span></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="link-sair">Sair</a></li>
             </ul>
         </div>
     </nav>
@@ -25,5 +26,10 @@
         <h1>Casal App</h1>
         <p>Controle de gastos da casa. Use o menu acima para navegar entre Casas, Categorias e Transações.</p>
     </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/sessao.js"></script>
+    <script src="js/api/authApi.js"></script>
+    <script src="js/pages/inicio.js"></script>
 </body>
 </html>

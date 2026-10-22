@@ -1,0 +1,41 @@
+flowchart TD
+    A([Chega uma requisição HTTP]) --> B{"A URL casa com algum<br/>addPathPatterns do WebConfig?"}
+    B -- não --> C["Nenhum interceptor é executado.<br/>Ex.: POST /auth/login, Swagger UI"]
+    C --> Z["Controller executa"]
+
+    B -- sim --> D["AutenticacaoInterceptor.preHandle"]
+    D --> E{"Método é OPTIONS?<br/>preflight do CORS"}
+    E -- sim --> Z
+
+    E -- não --> F{"É POST /usuarios?<br/>cadastro de quem ainda não tem conta"}
+    F -- sim --> Z
+
+    F -- não --> G["Lê o cabeçalho Authorization"]
+    G --> H{"Começa com<br/>o prefixo Bearer?"}
+    H -- não --> X[/"401<br/>token ausente, inválido ou expirado"/]
+
+    H -- sim --> I["authService.resolverUsuario<br/>tokenRepository.findByValor"]
+    I --> J{"Existe uma linha<br/>na tabela token?"}
+    J -- não --> X
+
+    J -- sim --> K{"expiraEm já passou?"}
+    K -- sim --> L["Apaga a linha do token"]
+    L --> X
+
+    K -- não --> M["request.setAttribute<br/>usuarioLogado = token.getUsuario()"]
+    M --> N["preHandle devolve true"]
+    N --> Z
+
+    Z --> O{"O método do controller declara<br/>@RequestAttribute usuarioLogado?"}
+    O -- sim --> P["Recebe a entidade Usuario<br/>e decide o que mostrar"]
+    O -- não --> Q["Ignora quem está logado<br/>e responde o mesmo para todos"]
+
+    P --> R([Resposta])
+    Q --> R
+
+    classDef falha fill:#f8d7da,stroke:#842029,color:#000
+    classDef ok fill:#d1e7dd,stroke:#0f5132,color:#000
+    classDef aberto fill:#fff3cd,stroke:#664d03,color:#000,stroke-dasharray: 5 5
+    class X,L falha
+    class M,N,P ok
+    class Q aberto

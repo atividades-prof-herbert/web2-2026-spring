@@ -9,3 +9,15 @@ async function login(credenciais) {
 
     return { ok: resposta.ok, status: resposta.status, corpo: corpo };
 }
+
+async function buscarUsuarioLogado() {
+    const resposta = await requisicaoAutenticada("/auth/eu");
+    return await resposta.json();
+}
+
+async function logout() {
+    await fetch(API_BASE_URL + "/auth/logout", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + lerToken() }
+    });
+}

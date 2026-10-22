@@ -51,10 +51,10 @@ public class TransacaoService {
         );
     }
 
-    public List<TransacaoResponseDTO> listar() {
+    public List<TransacaoResponseDTO> listarDaCasa(int casaId) {
         List<TransacaoResponseDTO> resultado = new ArrayList<>();
 
-        for (Transacao transacao : transacaoRepository.findAll()) {
+        for (Transacao transacao : transacaoRepository.findByCategoriaCasaId(casaId)) {
             resultado.add(toResponse(transacao));
         }
 

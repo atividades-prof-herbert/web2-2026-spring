@@ -1,0 +1,2 @@
+exigirLogin();
+configurarBarraDeSessao();

@@ -1,0 +1,69 @@
+sequenceDiagram
+    actor U as Usuário
+    participant P as pages/login.js
+    participant S as sessao.js
+    participant LS as localStorage
+    participant API as api/
+    participant INT as AutenticacaoInterceptor
+    participant AC as AuthController
+    participant TC as TransacaoController
+    participant AS as AuthService
+    participant PE as BCryptPasswordEncoder
+    participant TR as TokenRepository
+    participant DB as MySQL
+
+    rect rgb(232, 244, 253)
+    Note over U,DB: Fase 1: login. Acontece uma vez.
+    U->>P: submit do formulário
+    P->>API: login(credenciais)
+    API->>AC: POST /auth/login
+    Note over INT: /auth/login não está em<br/>addPathPatterns: o interceptor<br/>não roda aqui
+    AC->>AS: autenticar
+    AS->>DB: SELECT ... FROM usuario WHERE email = ?
+    DB-->>AS: usuario com senha_hash
+    AS->>PE: matches(senha recebida, senha_hash)
+    PE-->>AS: true
+    AS->>TR: save(Token com UUID e expiraEm)
+    TR->>DB: INSERT INTO token
+    AS-->>AC: LoginResponseDTO com o token
+    AC-->>API: 200 + JSON
+    API-->>P: corpo da resposta
+    P->>S: salvarSessao(login)
+    S->>LS: grava casalapp.token
+    P->>U: redireciona para transacoes.html
+    end
+
+    rect rgb(226, 243, 233)
+    Note over U,DB: Fase 2: cada requisição seguinte.
+    U->>API: abre transacoes.html
+    API->>S: requisicaoAutenticada("/transacoes")
+    S->>LS: lerToken()
+    LS-->>S: o UUID guardado
+    S->>INT: GET /transacoes<br/>Authorization: Bearer UUID
+    INT->>AS: resolverUsuario(UUID)
+    AS->>TR: findByValor(UUID)
+    TR->>DB: SELECT ... FROM token WHERE valor = ?
+    DB-->>TR: token com o usuario associado
+    TR-->>AS: Token
+    Note over AS: estaExpirado()?
+    AS-->>INT: Usuario
+    INT->>INT: request.setAttribute("usuarioLogado", usuario)
+    INT->>TC: preHandle devolveu true
+    Note over TC: @RequestAttribute injeta<br/>a entidade Usuario no parâmetro
+    TC->>DB: SELECT ... WHERE categoria.casa_id = ?
+    DB-->>TC: só as transações da casa dele
+    TC-->>S: 200 + JSON
+    S-->>U: tabela na tela
+    end
+
+    rect rgb(248, 215, 218)
+    Note over U,DB: Fase 3: o token deixa de valer.
+    U->>S: clica em Sair
+    S->>AC: POST /auth/logout + Bearer
+    AC->>AS: encerrarSessao
+    AS->>TR: delete(token)
+    TR->>DB: DELETE FROM token WHERE id = ?
+    AC-->>S: 204
+    S->>LS: limparSessao()
+    Note over INT,DB: a partir daqui, o mesmo UUID<br/>produz 401: a linha não existe mais
+    end

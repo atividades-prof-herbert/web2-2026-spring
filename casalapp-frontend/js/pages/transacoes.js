@@ -1,3 +1,6 @@
+exigirLogin();
+configurarBarraDeSessao();
+
 const formTransacao = document.getElementById("form-transacao");
 const campoId = document.getElementById("transacao-id");
 const campoDescricao = document.getElementById("transacao-descricao");

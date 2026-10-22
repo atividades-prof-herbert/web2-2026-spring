@@ -1,40 +1,37 @@
 async function listarUsuarios() {
-    const resposta = await fetch(API_BASE_URL + "/usuarios");
+    const resposta = await requisicaoAutenticada("/usuarios");
     return await resposta.json();
 }
 
 async function buscarUsuario(id) {
-    const resposta = await fetch(API_BASE_URL + "/usuarios/" + id);
+    const resposta = await requisicaoAutenticada("/usuarios/" + id);
     return await resposta.json();
 }
 
-async function criarUsuario(usuario) {
-    const resposta = await fetch(API_BASE_URL + "/usuarios", {
+async function criarUsuario(dados) {
+    const resposta = await requisicaoAutenticada("/usuarios", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(usuario)
+        body: JSON.stringify(dados)
     });
     return await resposta.json();
 }
 
-async function atualizarUsuario(id, usuario) {
-    const resposta = await fetch(API_BASE_URL + "/usuarios/" + id, {
+async function atualizarUsuario(id, dados) {
+    const resposta = await requisicaoAutenticada("/usuarios/" + id, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(usuario)
+        body: JSON.stringify(dados)
     });
     return await resposta.json();
 }
 
-async function atualizarParcialUsuario(id, usuario) {
-    const resposta = await fetch(API_BASE_URL + "/usuarios/" + id, {
+async function atualizarParcialUsuario(id, dados) {
+    const resposta = await requisicaoAutenticada("/usuarios/" + id, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(usuario)
+        body: JSON.stringify(dados)
     });
     return await resposta.json();
 }
 
 async function deletarUsuario(id) {
-    await fetch(API_BASE_URL + "/usuarios/" + id, { method: "DELETE" });
+    await requisicaoAutenticada("/usuarios/" + id, { method: "DELETE" });
 }

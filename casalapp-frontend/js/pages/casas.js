@@ -1,3 +1,6 @@
+exigirLogin();
+configurarBarraDeSessao();
+
 const formCasa = document.getElementById("form-casa");
 const campoId = document.getElementById("casa-id");
 const campoNome = document.getElementById("casa-nome");

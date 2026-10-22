@@ -1,5 +1,3 @@
-let usuarioLogado = null;
-
 const formLogin = document.getElementById("form-login");
 const campoEmail = document.getElementById("login-email");
 const campoSenha = document.getElementById("login-senha");
@@ -14,12 +12,21 @@ function mostrarErro(mensagem) {
     painelErro.classList.remove("d-none");
 }
 
-function mostrarUsuarioLogado() {
-    nomeLogado.textContent = usuarioLogado.nome;
-    casaLogada.textContent = usuarioLogado.casaNome ? usuarioLogado.casaNome : "sem casa";
+function mostrarUsuarioLogado(usuario) {
+    nomeLogado.textContent = usuario.nome;
+    casaLogada.textContent = usuario.casaNome ? usuario.casaNome : "sem casa";
     painelErro.classList.add("d-none");
     formLogin.classList.add("d-none");
     painelLogado.classList.remove("d-none");
+}
+
+async function conferirSessaoNoServidor() {
+    if (!lerToken()) {
+        return;
+    }
+
+    const usuario = await buscarUsuarioLogado();
+    mostrarUsuarioLogado(usuario);
 }
 
 formLogin.addEventListener("submit", async function (evento) {
@@ -37,13 +44,16 @@ formLogin.addEventListener("submit", async function (evento) {
         return;
     }
 
-    usuarioLogado = resultado.corpo;
-    mostrarUsuarioLogado();
+    salvarSessao(resultado.corpo);
+    window.location.href = "transacoes.html";
 });
 
-btnSair.addEventListener("click", function () {
-    usuarioLogado = null;
+btnSair.addEventListener("click", async function () {
+    await logout();
+    limparSessao();
     formLogin.reset();
     formLogin.classList.remove("d-none");
     painelLogado.classList.add("d-none");
 });
+
+conferirSessaoNoServidor();

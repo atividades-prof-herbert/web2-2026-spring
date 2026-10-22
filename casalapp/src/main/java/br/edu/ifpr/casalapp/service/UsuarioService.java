@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import br.edu.ifpr.casalapp.dto.UsuarioRequestDTO;
@@ -18,10 +19,13 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final CasaRepository casaRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, CasaRepository casaRepository) {
+    public UsuarioService(UsuarioRepository usuarioRepository, CasaRepository casaRepository,
+            PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.casaRepository = casaRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     private UsuarioResponseDTO toResponse(Usuario usuario) {
@@ -67,7 +71,9 @@ public class UsuarioService {
             casa = casaOpt.get();
         }
 
-        Usuario novo = new Usuario(0, request.nome(), request.email(), request.senha(), casa);
+        String senhaHash = passwordEncoder.encode(request.senha());
+
+        Usuario novo = new Usuario(0, request.nome(), request.email(), senhaHash, casa);
         Usuario salvo = usuarioRepository.save(novo);
         return toResponse(salvo);
     }
@@ -83,7 +89,9 @@ public class UsuarioService {
             casa = casaOpt.get();
         }
 
-        Usuario atualizado = new Usuario(id, request.nome(), request.email(), request.senha(), casa);
+        String senhaHash = passwordEncoder.encode(request.senha());
+
+        Usuario atualizado = new Usuario(id, request.nome(), request.email(), senhaHash, casa);
         Usuario salvo = usuarioRepository.save(atualizado);
         return toResponse(salvo);
     }
@@ -98,7 +106,10 @@ public class UsuarioService {
 
         String novoNome = request.nome() != null ? request.nome() : existente.getNome();
         String novoEmail = request.email() != null ? request.email() : existente.getEmail();
-        String novaSenha = request.senha() != null ? request.senha() : existente.getSenha();
+        String novaSenhaHash = existente.getSenhaHash();
+        if (request.senha() != null) {
+            novaSenhaHash = passwordEncoder.encode(request.senha());
+        }
 
         Casa novaCasa = existente.getCasa();
         if (request.casaId() != null) {
@@ -109,7 +120,7 @@ public class UsuarioService {
             }
         }
 
-        Usuario atualizado = new Usuario(id, novoNome, novoEmail, novaSenha, novaCasa);
+        Usuario atualizado = new Usuario(id, novoNome, novoEmail, novaSenhaHash, novaCasa);
         Usuario salvo = usuarioRepository.save(atualizado);
         return toResponse(salvo);
     }

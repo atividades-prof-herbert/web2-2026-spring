@@ -1,7 +1,10 @@
 package br.edu.ifpr.casalapp.controller;
 
+import br.edu.ifpr.casalapp.config.AutenticacaoInterceptor;
 import br.edu.ifpr.casalapp.dto.TransacaoRequestDTO;
 import br.edu.ifpr.casalapp.dto.TransacaoResponseDTO;
+import br.edu.ifpr.casalapp.model.Casa;
+import br.edu.ifpr.casalapp.model.Usuario;
 import br.edu.ifpr.casalapp.service.TransacaoService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -19,10 +22,18 @@ public class TransacaoController {
         this.transacaoService = transacaoService;
     }
 
-    @Operation(summary = "Lista todas as transações")
+    @Operation(summary = "Lista as transações da casa do usuário autenticado")
     @GetMapping("/transacoes")
-    public List<TransacaoResponseDTO> listarTransacoes() {
-        return transacaoService.listar();
+    public List<TransacaoResponseDTO> listarTransacoes(
+            @RequestAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO_LOGADO) Usuario usuarioLogado) {
+
+        Casa casa = usuarioLogado.getCasa();
+
+        if (casa == null) {
+            return List.of();
+        }
+
+        return transacaoService.listarDaCasa(casa.getId());
     }
 
     @GetMapping("/transacoes/{id}")

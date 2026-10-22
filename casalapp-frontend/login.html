@@ -40,12 +40,13 @@
 
         <div id="painel-logado" class="alert alert-success d-none">
             <p class="mb-1">Autenticado como <strong id="nome-logado"></strong>, da casa <strong id="casa-logada"></strong>.</p>
-            <p class="mb-2 small">Esta informação está guardada apenas em uma variável JavaScript desta página: recarregar o navegador a perde.</p>
+            <p class="mb-2 small">Quem respondeu quem você é foi o servidor, em <code>GET /auth/eu</code>, a partir do token guardado no <code>localStorage</code>: recarregar o navegador não desfaz a sessão.</p>
             <button type="button" id="btn-sair" class="btn btn-sm btn-secondary">Sair</button>
         </div>
     </div>
 
     <script src="js/config.js"></script>
+    <script src="js/sessao.js"></script>
     <script src="js/api/authApi.js"></script>
     <script src="js/pages/login.js"></script>
 </body>
