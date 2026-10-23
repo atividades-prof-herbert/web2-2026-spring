@@ -511,13 +511,22 @@ regra.
 
 ## 4. Protegendo as rotas
 
-Temos o hash, temos o token e temos como traduzir token em usuário. Falta aplicar isso em todas
-as rotas que precisam de proteção.
+Temos o hash, temos o token e temos como traduzir token em usuário. Falta aplicar isso nas rotas
+que precisam de proteção.
 
-### 4.1 Onde colocar a verificação
+Para orientar a leitura desta seção, vale adiantar a estrutura do que vamos construir. Antes de
+o método do `controller` executar, o servidor precisa responder três perguntas, **nesta ordem**:
 
-Essa é a decisão de projeto mais importante da aula, e vale examinar as opções antes de ver o
-código.
+1. Esta requisição precisa de token?
+2. Se precisa, o token apresentado vale?
+3. Se vale, de quem ele é, e como passar essa informação adiante?
+
+Uma única peça responde às três. As subseções 4.4, 4.5 e 4.6 tratam de uma pergunta cada, na
+mesma ordem em que o código as faz.
+
+### 4.1 Onde a verificação deve morar
+
+Antes da peça, a decisão de projeto: em que ponto da aplicação essa verificação acontece.
 
 | Lugar | Como seria | Por que não |
 |---|---|---|
@@ -526,12 +535,35 @@ código.
 | Em um `Filter` do Jakarta Servlet | Uma peça que roda antes do Spring MVC. | Funciona, mas é cedo demais: nesse ponto o Spring ainda não decidiu qual método vai atender, e o filtro trabalha com texto de URL em vez de rotas. |
 | Em um `HandlerInterceptor` | Uma peça do Spring MVC que roda entre o mapeamento da rota e a execução do método. | É a escolha desta aula. |
 
-O critério por trás da escolha é o de sempre: a verificação de token é uma regra
-**transversal**, que vale para muitas rotas e não pertence a nenhuma delas em particular.
-Regras transversais ficam em um lugar só, atravessando as requisições, em vez de serem copiadas
-em cada ponto.
+O critério é o de sempre: a verificação de token é uma regra **transversal**, que vale para
+muitas rotas e não pertence a nenhuma delas em particular. Regras transversais ficam em um lugar
+só, atravessando as requisições, em vez de serem copiadas em cada ponto.
 
-### 4.2 O `HandlerInterceptor`
+### 4.2 A peça e o momento: `HandlerInterceptor`
+
+Um interceptor é uma classe que o Spring MVC chama no meio do processamento de uma requisição. A
+interface `HandlerInterceptor` oferece três momentos de entrada, e vamos usar apenas o primeiro:
+
+| Método | Quando roda | Para que serve |
+|---|---|---|
+| `preHandle` | Depois de o Spring escolher o método do `controller` e **antes** de executá-lo. | Decidir se a requisição segue adiante. É o nosso caso. |
+| `postHandle` | Depois do `controller`, antes de a resposta ser escrita. | Acrescentar algo à resposta. |
+| `afterCompletion` | Depois de a resposta ter sido enviada. | Registrar tempo de execução, liberar recursos. |
+
+O que torna o `preHandle` capaz de proteger uma rota é o seu tipo de retorno, que é `boolean`:
+
+| O `preHandle` devolve | O que acontece |
+|---|---|
+| `true` | A requisição segue, e o método do `controller` executa normalmente. |
+| `false` | **A requisição para ali.** O `controller` não é chamado, e o cliente recebe o que o interceptor já tiver escrito na resposta. |
+
+Guarde essa segunda linha, porque é nela que mora a proteção: o nosso interceptor vai devolver
+`false` quando não houver token válido, e nenhuma linha de nenhum `controller` chegará a rodar.
+
+### 4.3 O `preHandle` do `casalapp`
+
+Este é o método completo. Leia uma vez sem se preocupar com os detalhes: cada bloco é assunto de
+uma subseção adiante.
 
 ```java
 @Component
@@ -570,22 +602,64 @@ public class AutenticacaoInterceptor implements HandlerInterceptor {
     }
 ```
 
-A interface `HandlerInterceptor` oferece três pontos de interceptação, e usamos apenas o
-primeiro:
+O método tem exatamente a forma das três perguntas anunciadas no início da seção, e é assim que
+convém lê-lo:
 
-| Método | Quando roda | Para que serve |
+| Trecho | Pergunta que responde | Subseção |
 |---|---|---|
-| `preHandle` | Depois de o Spring escolher o método do `controller` e antes de executá-lo. | Decidir se a requisição segue adiante. É o nosso caso. |
-| `postHandle` | Depois do `controller`, antes de a resposta ser escrita. | Acrescentar algo à resposta. |
-| `afterCompletion` | Depois de a resposta ter sido enviada. | Registrar tempo de execução, liberar recursos. |
+| `if (dispensaToken(request))` | Esta requisição precisa de token? | 4.4 |
+| `extrairToken` e `resolverUsuario`, até o `return false` | O token apresentado vale? | 4.5 |
+| `request.setAttribute(...)` | De quem é o token, e como passar isso adiante? | 4.6 |
 
-O detalhe mais importante do `preHandle` é o seu tipo de retorno. **Devolver `false` interrompe
-a requisição**: o método do `controller` não é chamado, e o que já estiver escrito na resposta é
-o que o cliente recebe. Por isso o status e o corpo do erro são montados ali, à mão, sem
-`ResponseEntity`: não há `controller` para devolver um. O JSON escrito à mão tem o mesmo formato
-do `ErroResponseDTO`, de propósito, para que o cliente veja sempre a mesma estrutura de erro.
+Note também que a classe é um `@Component` e recebe o `AuthService` por construtor, como
+qualquer outro bean do projeto. Um interceptor não é uma peça de infraestrutura isolada: ele
+participa da injeção de dependência igual ao resto.
 
-Observe ainda duas peças pequenas que evitam defeitos reais:
+### 4.4 Primeira pergunta: esta requisição precisa de token?
+
+```java
+    private boolean dispensaToken(HttpServletRequest request) {
+        boolean preflightCors = "OPTIONS".equals(request.getMethod());
+        boolean cadastroDeNovoUsuario = "POST".equals(request.getMethod())
+                && "/usuarios".equals(request.getRequestURI());
+
+        return preflightCors || cadastroDeNovoUsuario;
+    }
+```
+
+São duas exceções, de naturezas completamente diferentes, e cada uma ensina algo.
+
+**O preflight do CORS.** Como o frontend passou a enviar o cabeçalho `Authorization`, que não
+está na lista de cabeçalhos considerados simples, o navegador deixa de disparar a requisição
+diretamente. Antes dela, ele envia uma requisição `OPTIONS` perguntando ao servidor se aquela
+combinação de origem, método e cabeçalho é permitida. Essa pergunta chega **sem** o cabeçalho
+`Authorization`, porque ela ainda não é a requisição de verdade.
+
+O efeito de não tratar esse caso é instrutivo, e foi observado durante a escrita desta aula: o
+interceptor responde `401` ao `OPTIONS`, o navegador conclui que a requisição não é permitida, e
+**nenhuma** chamada do frontend chega ao servidor. O curioso é que, pelo `curl`, tudo funciona,
+porque o `curl` não faz preflight. É exatamente o tipo de defeito que só aparece no navegador, e
+a lição é que a configuração de CORS e a de autenticação precisam ser pensadas juntas.
+
+**O cadastro de novo usuário.** Aqui a razão não é técnica, é lógica. Quem está se cadastrando
+ainda não tem conta, logo não pode ter token. Se `POST /usuarios` exigisse autenticação, o
+sistema ficaria em um impasse: seria impossível criar o primeiro usuário, e cada novo usuário
+dependeria de alguém já cadastrado. Note que a exceção é bem estreita, e isso é deliberado: ela
+exige que o método seja `POST` **e** que o caminho seja exatamente `/usuarios`. A listagem
+`GET /usuarios` e a exclusão `DELETE /usuarios/7` continuam protegidas.
+
+### 4.5 Segunda pergunta: o token apresentado vale?
+
+Esta é a parte central, e ela se apoia inteiramente no que a seção 3.6 já construiu. O
+interceptor não sabe nada sobre tabelas nem sobre prazos: ele lê um cabeçalho e pergunta ao
+`AuthService`.
+
+```java
+        String token = extrairToken(request.getHeader("Authorization"));
+        Usuario usuario = authService.resolverUsuario(token);
+```
+
+A leitura do cabeçalho é uma peça pequena e vale olhá-la, porque ela evita um defeito real:
 
 ```java
     private String extrairToken(String cabecalho) {
@@ -596,12 +670,66 @@ Observe ainda duas peças pequenas que evitam defeitos reais:
     }
 ```
 
-O cabeçalho ausente e o cabeçalho com esquema errado são tratados antes de qualquer tentativa de
-`substring`, que nesses casos lançaria exceção e produziria um `500` onde cabe um `401`. E o
-`charset=UTF-8` na resposta não é detalhe estético: sem ele, a palavra "inválido" chega
-corrompida ao cliente, porque o contêiner adota a codificação padrão da plataforma.
+O cabeçalho ausente e o cabeçalho com esquema errado são tratados **antes** de qualquer tentativa
+de `substring`, que nesses casos lançaria exceção e produziria um `500` onde cabe um `401`.
+Lembre da seção 3.7: é o prefixo `Bearer ` que distingue um cabeçalho que nos diz respeito de um
+`Authorization: Basic ...`, que seguiria outra regra.
 
-### 4.3 O registro: quais rotas são protegidas
+Quando `resolverUsuario` devolve `null`, por qualquer um dos três motivos possíveis (cabeçalho
+ausente, token inexistente ou token expirado), o interceptor recusa a requisição:
+
+```java
+        if (usuario == null) {
+            response.setStatus(401);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"mensagem\":\"token ausente, inválido ou expirado\"}");
+            return false;
+        }
+```
+
+Três observações sobre essas quatro linhas, que são diferentes de tudo o que o projeto escreveu
+até aqui.
+
+1. **O status e o corpo são montados à mão, sem `ResponseEntity`.** Isso não é desleixo: como o
+   método devolve `false`, nenhum `controller` vai executar, e portanto não existe `controller`
+   para devolver um `ResponseEntity`. Quem escreve a resposta é o próprio interceptor.
+2. **O JSON imita o formato do `ErroResponseDTO` de propósito.** O cliente passa a ver sempre a
+   mesma estrutura de erro, venha ela de um `controller` ou do interceptor.
+3. **O `charset=UTF-8` não é detalhe estético.** Sem ele, a palavra "inválido" chega corrompida
+   ao cliente, porque o contêiner adota a codificação padrão da plataforma.
+
+Repare, por fim, que a mensagem é uma só para os três motivos de recusa. É a mesma disciplina da
+seção 6.3 da aula 10: dizer ao cliente que o token "existe mas expirou", em vez de apenas
+recusá-lo, é informação que só interessa a quem está testando tokens alheios.
+
+### 4.6 Terceira pergunta: de quem é o token
+
+```java
+        request.setAttribute(ATRIBUTO_USUARIO_LOGADO, usuario);
+        return true;
+```
+
+Esta é a linha mais fácil de passar batido e a mais importante da seção, porque é ela que
+transforma o interceptor de porteiro em algo útil para o resto da aplicação.
+
+Repare no desperdício que existiria sem ela. Para decidir se a requisição passa, o interceptor
+precisou consultar o banco e obter a entidade `Usuario` inteira. Se ele apenas devolvesse `true`
+e descartasse esse objeto, cada `controller` que quisesse saber quem está logado teria de
+consultar o banco **de novo**, repetindo um trabalho que acabou de ser feito.
+
+Um `HttpServletRequest` carrega, além do método, da URL, dos cabeçalhos e do corpo, um mapa de
+atributos que vive **durante aquela requisição**. Qualquer peça que participe do processamento
+pode escrever nele, e qualquer peça seguinte pode ler. É um espaço de rascunho com tempo de vida
+exato: nasce quando a requisição chega e morre quando a resposta é enviada.
+
+Vale reparar que o nome do atributo é a constante `public static final` declarada no topo da
+classe. Se fosse uma `String` literal repetida em cada `controller`, um erro de digitação em um
+deles produziria um `null` em tempo de execução, sem aviso nenhum do compilador. Com a constante,
+quem escreve e quem lê usam necessariamente o mesmo nome.
+
+Como o `controller` pega esse valor de volta é o assunto da seção 5.
+
+### 4.7 O registro: sem ele, nada acontece
 
 Um interceptor não protege nada enquanto não for registrado. Quem faz isso é o `WebConfig`, a
 mesma classe que a aula 9 criou para o CORS:
@@ -620,56 +748,37 @@ mesma classe que a aula 9 criou para o CORS:
     }
 ```
 
-Esta lista é, literalmente, a política de segurança da aplicação, e é importante que ela esteja
-em um único lugar legível. Note o que **não** está nela e por quê:
+Vale separar com clareza os dois papéis, porque é aqui que a leitura costuma se embaralhar:
+
+| Peça | Responsabilidade |
+|---|---|
+| `WebConfig`, com `addPathPatterns` | **Quais** rotas passam pelo interceptor. |
+| `AutenticacaoInterceptor`, no `preHandle` | **O que** acontece com as rotas que passam por ele. |
+
+Uma rota que não casa com nenhum padrão da lista nunca chega ao `preHandle`: para ela, o
+interceptor simplesmente não existe. Esta lista é, literalmente, a política de segurança da
+aplicação, e por isso é importante que esteja em um único lugar legível. Note o que **não** está
+nela e por quê:
 
 | Rota fora da lista | Motivo |
 |---|---|
 | `POST /auth/login` | Quem pede um token ainda não tem um. Exigir token aqui tornaria o sistema inacessível. |
 | `/swagger-ui/**` e `/v3/api-docs/**` | É documentação. Em um ambiente de produção, o acesso a ela se restringe de outra maneira. |
 
-A decisão de listar as rotas protegidas, em vez de proteger `/**` e abrir exceções, tem uma
-consequência que vale discutir honestamente em sala: **uma rota nova nasce desprotegida**. Se
-amanhã alguém criar um `OrcamentoController`, ele responderá a qualquer um até que a linha
-correspondente apareça aqui. A política inversa, chamada *deny by default*, é mais segura por
-construção, e é a que o Spring Security adota. A opção desta aula troca essa garantia por
-clareza didática, e saber que a troca existe é parte da lição.
+Surge daí uma pergunta natural: se `POST /auth/login` fica de fora pela lista do `WebConfig`,
+por que `POST /usuarios` precisou da exceção dentro do interceptor, na seção 4.4? Porque a lista
+do `WebConfig` trabalha com **caminhos**, e não com métodos HTTP. Deixar `/usuarios` fora da
+lista abriria também o `GET /usuarios`, que lista nome e email de todo mundo. Como a exceção que
+queremos vale para um método só, ela não cabe no `WebConfig` e desce para o `preHandle`.
 
-### 4.4 As duas requisições que dispensam token
+Por fim, a decisão de **listar as rotas protegidas**, em vez de proteger `/**` e abrir exceções,
+tem uma consequência que vale discutir honestamente em sala: **uma rota nova nasce
+desprotegida**. Se amanhã alguém criar um `OrcamentoController`, ele responderá a qualquer um até
+que a linha correspondente apareça aqui. A política inversa, chamada *deny by default*, é mais
+segura por construção, e é a que o Spring Security adota. A opção desta aula troca essa garantia
+por clareza didática, e saber que a troca existe é parte da lição.
 
-```java
-    private boolean dispensaToken(HttpServletRequest request) {
-        boolean preflightCors = "OPTIONS".equals(request.getMethod());
-        boolean cadastroDeNovoUsuario = "POST".equals(request.getMethod())
-                && "/usuarios".equals(request.getRequestURI());
-
-        return preflightCors || cadastroDeNovoUsuario;
-    }
-```
-
-As duas exceções têm naturezas completamente diferentes, e cada uma ensina algo.
-
-**O preflight do CORS.** Como o frontend passou a enviar o cabeçalho `Authorization`, que não
-está na lista de cabeçalhos considerados simples, o navegador deixa de disparar a requisição
-diretamente. Antes dela, ele envia uma requisição `OPTIONS` perguntando ao servidor se aquela
-combinação de origem, método e cabeçalho é permitida. Essa pergunta chega **sem** o cabeçalho
-`Authorization`, porque ela ainda não é a requisição de verdade.
-
-O efeito, se não tratássemos esse caso, é instrutivo e foi observado durante a escrita desta
-aula: o interceptor responde `401` ao `OPTIONS`, o navegador conclui que a requisição não é
-permitida, e **nenhuma** chamada do frontend chega ao servidor. O curioso é que, pelo `curl`,
-tudo funciona, porque o `curl` não faz preflight. É exatamente o tipo de defeito que só aparece
-no navegador, e a lição é que a configuração de CORS e a de autenticação precisam ser pensadas
-juntas.
-
-**O cadastro de novo usuário.** Aqui a razão não é técnica, é lógica. Quem está se cadastrando
-ainda não tem conta, logo não pode ter token. Se `POST /usuarios` exigisse autenticação, o
-sistema ficaria em um impasse: seria impossível criar o primeiro usuário, e cada novo usuário
-dependeria de alguém já cadastrado. Note que a exceção é bem estreita, e isso é deliberado: ela
-exige que o método seja `POST` **e** que o caminho seja exatamente `/usuarios`. A listagem
-`GET /usuarios` e a exclusão `DELETE /usuarios/7` continuam protegidas.
-
-### 4.5 O CORS acompanha
+### 4.8 O CORS acompanha
 
 ```java
         registry.addMapping("/**")
@@ -680,14 +789,14 @@ exige que o método seja `POST` **e** que o caminho seja exatamente `/usuarios`.
 
 Duas adições à configuração da aula 9: `OPTIONS` entre os métodos e `Authorization` entre os
 cabeçalhos permitidos. Sem a segunda, o navegador recusaria a requisição mesmo que o servidor
-estivesse disposto a atendê-la, pois o preflight responderia que aquele cabeçalho não é
-aceito. Vale enfatizar o que isso revela sobre o CORS: ele é uma restrição aplicada **pelo
-navegador**, com base na resposta do servidor, e não uma proteção do servidor contra clientes.
+estivesse disposto a atendê-la, pois o preflight responderia que aquele cabeçalho não é aceito.
+Vale enfatizar o que isso revela sobre o CORS: ele é uma restrição aplicada **pelo navegador**,
+com base na resposta do servidor, e não uma proteção do servidor contra clientes.
 
-### 4.6 O caminho de decisão, em um diagrama
+### 4.9 O caminho de decisão, em um diagrama
 
-O diagrama abaixo reúne as regras das seções 4.3 e 4.4 em um único caminho de decisão, do
-momento em que a requisição chega até o método do `controller`. Ele também está em
+O diagrama abaixo reúne, em um único caminho, a lista do `WebConfig` da seção 4.7 e as três
+perguntas do `preHandle`. Ele também está em
 [`aulas/11_auth_hash_token_fluxo.mmd`](11_auth_hash_token_fluxo.mmd).
 
 ```mermaid
@@ -738,70 +847,106 @@ Compare este diagrama com o da seção 1.1 da aula 10. Lá, um retângulo amarel
 representava as rotas que não se conectavam a nada. Aqui, o amarelo mudou de lugar e de
 significado: ele agora marca os `controllers` que **podem** saber quem está logado e escolhem
 ignorar. A porta está fechada; o que resta decidir é quanto cada sala lá dentro diferencia um
-visitante do outro. Esse é o assunto da seção seguinte.
+visitante do outro.
+
+### 4.10 E não existe uma anotação que faça isso?
+
+Essa é a pergunta certa a se fazer neste ponto, e a resposta tem uma ressalva que vale guardar:
+**anotação é declaração, não implementação**. Uma anotação sozinha não verifica nada. Alguém
+precisa lê-la em tempo de execução, e esse alguém é um interceptor, um filtro ou um aspecto, isto
+é, uma peça do tipo que acabamos de escrever.
+
+Há dois caminhos, e eles respondem a necessidades diferentes.
+
+| Caminho | Como seria | O que ainda é preciso escrever |
+|---|---|---|
+| **Spring Security**, com o starter completo | `@EnableMethodSecurity` na configuração e `@PreAuthorize("isAuthenticated()")` sobre os métodos, ou a política declarada de uma vez na cadeia de filtros. `@AuthenticationPrincipal` substitui o que a seção 5.1 vai mostrar. | Para um token opaco nosso, um filtro que traduza o token em um objeto de autenticação do framework. A peça não desaparece: muda de nome e passa a conviver com a cadeia inteira. |
+| **Uma anotação própria**, sem Spring Security | Criar, por exemplo, `@Publico`, e anotar os métodos que dispensam token. | O mesmo interceptor, que passaria a ler a anotação do método em vez de comparar caminhos. O parâmetro `Object handler` do `preHandle`, que esta aula ignora, é justamente o método escolhido pelo Spring, e por ele se chega às anotações. |
+
+O segundo caminho resolveria de forma elegante a fraqueza admitida no final da seção 4.7:
+bastaria registrar o interceptor em `/**`, obtendo *deny by default*, e declarar cada exceção na
+própria rota, ao lado do `@PostMapping`, em vez de em uma lista distante. No mesmo espírito, um
+`HandlerMethodArgumentResolver` permitiria trocar o parâmetro verboso da seção 5.1 por um
+`@UsuarioLogado Usuario`.
+
+Nada disso foi feito aqui, e por um motivo didático: construir primeiro o mecanismo e só depois
+escondê-lo atrás de uma anotação é a ordem que permite entender o que a anotação faz. Quem
+começa pela anotação aprende a usá-la e não sabe diagnosticar quando ela não funciona. O
+caminho do Spring Security é assunto de uma aula futura, e o da anotação própria é um bom
+exercício para quem terminar a atividade antes da hora.
 
 ---
 
-## 5. Saber quem está logado
+## 5. Do interceptor ao `controller`: quem está logado
 
-O interceptor descobriu quem é o usuário e tomou uma decisão de "entra ou não entra". Mas o
-`controller`, que é quem monta a resposta, não tem acesso a essa descoberta: ele recebe apenas
-o que declara nos parâmetros do método.
+A seção 4.6 deixou a entidade `Usuario` guardada no mapa de atributos da requisição. Falta a
+outra ponta: como o método do `controller` recebe esse objeto, e o que ele passa a poder fazer
+com ele.
 
-### 5.1 O atributo da requisição
+### 5.1 `@RequestAttribute`, o outro lado da ponte
 
-A ponte é uma linha que já apareceu no código do interceptor:
+Um `controller` só recebe o que declara nos parâmetros do método. Para pegar o que o interceptor
+guardou, ele declara isto:
 
 ```java
-        request.setAttribute(ATRIBUTO_USUARIO_LOGADO, usuario);
+    public UsuarioResponseDTO eu(
+            @RequestAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO_LOGADO) Usuario usuarioLogado) {
 ```
 
-Um `HttpServletRequest` carrega, além do método, da URL, dos cabeçalhos e do corpo, um mapa de
-atributos que vive **durante aquela requisição**. Qualquer peça que participe do processamento
-pode escrever nele, e qualquer peça seguinte pode ler. É um espaço de rascunho com tempo de
-vida exato: nasce quando a requisição chega e morre quando a resposta é enviada.
+`@RequestAttribute` entra na mesma família de anotações que o projeto já conhece, e colocá-la ao
+lado das outras ajuda a fixar a ideia:
 
-Vale reparar que o nome do atributo é uma constante `public static final` do interceptor. Se
-fosse uma `String` literal repetida em cada `controller`, um erro de digitação em um deles
-produziria um `null` em tempo de execução, sem aviso nenhum do compilador. Com a constante, quem
-escreve e quem lê usam necessariamente o mesmo nome.
+| Anotação | De onde o Spring tira o valor | Origem do dado |
+|---|---|---|
+| `@PathVariable` | De um trecho da URL. | Cliente |
+| `@RequestParam` | Da *query string*. | Cliente |
+| `@RequestBody` | Do corpo da requisição, convertido de JSON. | Cliente |
+| `@RequestHeader` | De um cabeçalho HTTP. | Cliente |
+| `@RequestAttribute` | Do mapa de atributos da requisição. | **Servidor** |
 
-### 5.2 `@RequestAttribute`
+Todas respondem à mesma pergunta, "de onde vem o valor deste parâmetro", e é isso que faz o
+mecanismo parecer familiar na primeira vez. A coluna da direita é a que importa para a segurança.
+As quatro primeiras trazem dados que o **cliente** enviou, e por isso são dados não confiáveis,
+que precisam de validação. A última traz um dado que o **próprio servidor** produziu: o
+`controller` recebe uma entidade `Usuario` em que pode confiar, porque ela não veio da
+requisição, veio do banco, depois de o token ter sido conferido.
 
-Do outro lado da ponte, o `controller` declara um parâmetro:
+A alternativa deixa isso evidente. Se o `controller` lesse o id do usuário de um `@RequestParam`,
+como em `GET /transacoes?usuarioId=7`, bastaria trocar o número na URL para agir como outra
+pessoa. Confiar no atributo é seguro justamente porque o cliente não tem como escrever nele.
+
+### 5.2 O uso mais simples: a rota que responde "quem sou eu"
 
 ```java
     @Operation(summary = "Devolve o usuário dono do token enviado no cabeçalho Authorization")
     @GetMapping("/auth/eu")
     public UsuarioResponseDTO eu(
             @RequestAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO_LOGADO) Usuario usuarioLogado) {
-        ...
+
+        Casa casa = usuarioLogado.getCasa();
+        int casaId = casa != null ? casa.getId() : 0;
+        String casaNome = casa != null ? casa.getNome() : null;
+
+        return new UsuarioResponseDTO(...);
     }
 ```
 
-`@RequestAttribute` entra na mesma família de anotações que o projeto já conhece, e colocá-la
-ao lado das outras ajuda a fixar a ideia:
+Esta rota não tem lógica nenhuma: ela apenas devolve, em forma de DTO, o usuário que o
+interceptor já havia resolvido. Por isso serve bem como primeiro exemplo. Mas por que ela existe,
+se o `LoginResponseDTO` já trouxe esses mesmos dados no login?
 
-| Anotação | De onde o Spring tira o valor |
-|---|---|
-| `@PathVariable` | De um trecho da URL. |
-| `@RequestParam` | Da *query string*. |
-| `@RequestBody` | Do corpo da requisição, convertido de JSON. |
-| `@RequestHeader` | De um cabeçalho HTTP. |
-| `@RequestAttribute` | Do mapa de atributos da requisição, preenchido por outra peça do servidor. |
+Porque o cliente pode ter sido fechado e reaberto. Na próxima vez que a página carregar, o
+frontend terá no `localStorage` um token e alguns dados de quando o login aconteceu, e três
+perguntas sem resposta: o token ainda é válido? já expirou? foi invalidado por um `logout` em
+outro dispositivo? Chamar `GET /auth/eu` responde às três de uma vez, com o servidor como fonte
+da verdade. Em uma falha, o próprio interceptor devolve `401`, e o frontend sabe que precisa
+pedir login de novo.
 
-Todas respondem à mesma pergunta, "de onde vem o valor deste parâmetro", e é isso que faz o
-mecanismo parecer familiar na primeira vez. A diferença é a origem: as quatro primeiras trazem
-dados que o **cliente** enviou, e por isso são dados não confiáveis, que precisam de validação.
-A última traz um dado que o **próprio servidor** produziu, e esta é a razão de ser do desenho:
-o `controller` recebe uma entidade `Usuario` em que pode confiar, porque ela não veio da
-requisição, veio do banco, depois de o token ter sido conferido.
+Esse padrão é tão comum que a rota tem nomes consagrados em APIs reais, geralmente `/me`,
+`/users/me` ou `/auth/me`. Usamos `/auth/eu` por coerência com o restante do projeto, que está em
+português.
 
-Compare com a alternativa de o `controller` ler o id do usuário de um `@RequestParam`. Nesse
-caso, bastaria qualquer pessoa trocar o número na URL para agir como outro usuário. Confiar no
-atributo é seguro justamente porque o cliente não tem como escrever nele.
-
-### 5.3 Autorização de verdade: a listagem que depende de quem pergunta
+### 5.3 Autorização: a resposta que depende de quem pergunta
 
 Até esta aula, `GET /transacoes` devolvia todas as transações de todas as casas para qualquer
 pessoa. Com o usuário em mão, a rota passa a responder outra coisa:
@@ -823,21 +968,22 @@ pessoa. Com o usuário em mão, a rota passa a responder outra coisa:
 ```
 
 Este é o momento em que a autorização aparece, e é bom nomear o que mudou: **a resposta passou a
-depender de quem perguntou**. Duas pessoas chamando a mesma URL, com o mesmo método e sem
-nenhum parâmetro, recebem conteúdos diferentes. Foi exatamente o que os testes desta aula
-mostraram, com duas usuárias em casas diferentes:
+depender de quem perguntou**. Duas pessoas chamando a mesma URL, com o mesmo método e sem nenhum
+parâmetro, recebem conteúdos diferentes. Foi exatamente o que os testes desta aula mostraram, com
+duas usuárias em casas diferentes:
 
 ```
 Ana, da Casa A:  [{"id":1,"descricao":"Feira","valor":120.5,...,"casaNome":"Casa A"}]
 Bia, da Casa B:  [{"id":2,"descricao":"Cinema","valor":60.0,...,"casaNome":"Casa B"}]
 ```
 
-Note de onde vem o filtro: do token, nunca do cliente. Se o id da casa viesse da requisição,
-como em `GET /transacoes?casaId=1`, a Bia poderia simplesmente trocar o número e ler a casa da
-Ana. O dado em que confiamos é o que o servidor obteve por conta própria.
+Note de onde vem o filtro: do token, nunca do cliente. Se o id da casa viesse da requisição, como
+em `GET /transacoes?casaId=1`, a Bia poderia simplesmente trocar o número e ler a casa da Ana. O
+dado em que confiamos é o que o servidor obteve por conta própria. É a coluna da direita da
+tabela da seção 5.1, agora com consequência prática.
 
-No `repository`, o filtro é mais uma consulta derivada, do tipo que a aula 10 estudou, e
-aproveita a navegação por relacionamentos da seção 3.4 daquela aula:
+No `repository`, o filtro é mais uma consulta derivada, do tipo que a aula 10 estudou, e aproveita
+a navegação por relacionamentos da seção 3.4 daquela aula:
 
 ```java
 public interface TransacaoRepository extends JpaRepository<Transacao, Integer> {
@@ -850,41 +996,11 @@ O nome atravessa dois níveis de associação: de `Transacao` para `categoria`, 
 `casa`, e finalmente o `id`. O Spring Data monta os dois `JOIN` necessários. Escrever isso à mão
 era o exercício da aula 4.
 
-Repare por fim no tratamento de `casa == null`. Um usuário sem casa recebe uma lista vazia, e
-não um erro. A decisão é defensável: ele está autenticado e tem direito de ver o que é dele, que
+Repare por fim no tratamento de `casa == null`. Um usuário sem casa recebe uma lista vazia, e não
+um erro. A decisão é defensável: ele está autenticado e tem direito de ver o que é dele, que
 neste caso é nada. Devolver `500` seria errado, e devolver todas as transações seria muito pior.
 
-### 5.4 A rota que responde "quem sou eu"
-
-```java
-    @GetMapping("/auth/eu")
-    public UsuarioResponseDTO eu(
-            @RequestAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO_LOGADO) Usuario usuarioLogado) {
-
-        Casa casa = usuarioLogado.getCasa();
-        int casaId = casa != null ? casa.getId() : 0;
-        String casaNome = casa != null ? casa.getNome() : null;
-
-        return new UsuarioResponseDTO(...);
-    }
-```
-
-Esta rota não tem lógica nenhuma: ela apenas devolve, em forma de DTO, o usuário que o
-interceptor já havia resolvido. Por que ela existe, então, se o `LoginResponseDTO` já trouxe
-esses mesmos dados no login?
-
-Porque o cliente pode ter sido fechado e reaberto. Na próxima vez que a página carregar, o
-frontend terá no `localStorage` um token e alguns dados de quando o login aconteceu, e três
-perguntas sem resposta: o token ainda é válido? já expirou? foi invalidado por um `logout` em
-outro dispositivo? Chamar `GET /auth/eu` responde às três de uma vez, com o servidor como fonte
-da verdade. Em uma falha, o próprio interceptor devolve `401`, e o frontend sabe que precisa
-pedir login de novo.
-
-Esse padrão é tão comum que a rota tem nomes consagrados em APIs reais, geralmente
-`/me`, `/users/me` ou `/auth/me`. Usamos `/auth/eu` por coerência com o restante do projeto,
-que está em português.
-
-### 5.5 Encerrar a sessão
+### 5.4 Encerrar a sessão
 
 ```java
     @PostMapping("/auth/logout")
@@ -897,18 +1013,20 @@ que está em português.
 Três detalhes em cinco linhas.
 
 1. **É `POST`, e não `GET`.** A rota altera o estado do servidor, apagando uma linha. Métodos
-   `GET` devem ser seguros no sentido técnico do termo, isto é, não causar efeito. Um `logout`
-   em `GET` seria disparado por qualquer coisa que a página carregasse, inclusive o
+   `GET` devem ser seguros no sentido técnico do termo, isto é, não causar efeito. Um `logout` em
+   `GET` seria disparado por qualquer coisa que a página carregasse, inclusive o
    pré-carregamento de links feito por alguns navegadores.
 2. **Devolve `204 No Content`.** A operação deu certo e não há nada para contar.
 3. **Esta rota está na lista de protegidas**, e por isso o `substring` é seguro: se o cabeçalho
    não existisse ou não começasse com `Bearer `, o interceptor já teria respondido `401` e o
-   método não executaria.
+   método não executaria. Note que aqui o `controller` usa `@RequestHeader`, e não
+   `@RequestAttribute`: ele não precisa saber quem é o usuário, precisa do valor do token para
+   apagá-lo.
 
-### 5.6 O retrato completo, em um diagrama de sequência
+### 5.5 O retrato completo, em um diagrama de sequência
 
-O diagrama abaixo acompanha as três fases da vida de uma sessão, do login à expulsão. Ele
-também está em
+O diagrama abaixo acompanha as três fases da vida de uma sessão, do login à expulsão. Ele também
+está em
 [`aulas/11_auth_hash_token_sequencia.mmd`](11_auth_hash_token_sequencia.mmd).
 
 ```mermaid
@@ -985,9 +1103,9 @@ sequenceDiagram
 
 Duas comparações com o diagrama equivalente da aula 10 fecham o raciocínio. A primeira é o
 desaparecimento da nota final daquele diagrama, "terminada a resposta, o servidor esquece por
-completo quem acabou de entrar": o servidor agora tem uma linha na tabela `token` que sobrevive
-à resposta. A segunda é a assimetria entre as fases 1 e 2. A fase 1 é caríssima, porque o BCrypt
-é lento de propósito, e acontece uma vez. A fase 2 é apenas uma consulta por chave única, e
+completo quem acabou de entrar": o servidor agora tem uma linha na tabela `token` que sobrevive à
+resposta. A segunda é a assimetria entre as fases 1 e 2. A fase 1 é caríssima, porque o BCrypt é
+lento de propósito, e acontece uma vez. A fase 2 é apenas uma consulta por chave única, e
 acontece em cada requisição. É para isso que serve o token: tirar a verificação caríssima do
 caminho comum.
 
@@ -1155,7 +1273,7 @@ async function conferirSessaoNoServidor() {
 }
 ```
 
-É o uso do `GET /auth/eu` descrito na seção 5.4: quem está com uma sessão válida vê quem está e
+É o uso do `GET /auth/eu` descrito na seção 5.2: quem está com uma sessão válida vê quem está e
 não precisa digitar nada; quem está com um token velho recebe `401`, é limpo pela
 `requisicaoAutenticada` e cai na própria tela de login.
 
