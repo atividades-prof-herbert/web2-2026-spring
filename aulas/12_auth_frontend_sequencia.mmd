@@ -1,0 +1,58 @@
+sequenceDiagram
+    actor U as Usuário
+    participant L as pages/login.js
+    participant S as sessao.js
+    participant LS as localStorage
+    participant P as pages/transacoes.js
+    participant API as api/
+    participant BACK as backend (aula 11)
+
+    rect rgb(232, 244, 253)
+    Note over U,BACK: Fase 1: login
+    U->>L: submit do formulário
+    L->>API: login(credenciais)
+    API->>BACK: POST /auth/login
+    BACK-->>API: 200 + LoginResponseDTO com o token
+    API-->>L: corpo da resposta
+    L->>S: salvarSessao(login)
+    S->>LS: grava casalapp.token e casalapp.usuario
+    L->>U: redireciona para transacoes.html
+    end
+
+    rect rgb(226, 243, 233)
+    Note over U,BACK: Fase 2: a página abre
+    U->>P: abre transacoes.html
+    P->>S: exigirLogin()
+    S->>LS: lerToken()
+    LS-->>S: existe um token?
+    alt não existe
+        S->>U: redireciona para login.html
+    else existe
+        P->>S: configurarBarraDeSessao()
+        S->>LS: lerUsuarioDaSessao()
+        S->>U: mostra o nome na barra
+        P->>API: listarTransacoes()
+        API->>S: requisicaoAutenticada(/transacoes)
+        S->>LS: lerToken()
+        S->>BACK: GET /transacoes<br/>Authorization Bearer token
+        alt token válido
+            BACK-->>S: 200 + JSON
+            S-->>API: resposta
+            API-->>P: lista de transações
+            P->>U: tabela na tela
+        else token expirado ou revogado
+            BACK-->>S: 401
+            S->>S: limparSessao()
+            S->>U: redireciona para login.html
+        end
+    end
+    end
+
+    rect rgb(248, 215, 218)
+    Note over U,BACK: Fase 3: sair
+    U->>S: clica em Sair
+    S->>BACK: POST /auth/logout (fetch direto, sem requisicaoAutenticada)
+    BACK-->>S: 204
+    S->>LS: limparSessao()
+    S->>U: redireciona para login.html
+    end

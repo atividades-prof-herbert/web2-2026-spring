@@ -1,0 +1,24 @@
+flowchart TD
+    A([Qualquer página protegida carrega]) --> B["exigirLogin()"]
+    B --> C{"localStorage tem<br/>casalapp.token?"}
+    C -- não --> D["redireciona para login.html"]
+    C -- sim --> E["configurarBarraDeSessao()<br/>mostra o nome guardado"]
+
+    E --> F["a página chama uma função de api/,<br/>por exemplo listarTransacoes()"]
+    F --> G["requisicaoAutenticada(caminho)"]
+    G --> H["lê o token do localStorage<br/>e monta Authorization: Bearer"]
+    H --> I["fetch para a API"]
+
+    I --> J{"status da resposta?"}
+    J -- "401" --> K["limparSessao()"]
+    K --> L["redireciona para login.html"]
+    L --> M["throw: a função chamadora não<br/>chega a tentar ler o corpo"]
+
+    J -- "200..299" --> N["devolve a resposta normalmente"]
+    N --> O["a página desenha a tabela"]
+
+    classDef falha fill:#f8d7da,stroke:#842029,color:#000
+    classDef ok fill:#d1e7dd,stroke:#0f5132,color:#000
+    classDef aberto fill:#fff3cd,stroke:#664d03,color:#000,stroke-dasharray: 5 5
+    class D,K,L,M falha
+    class E,N,O ok
