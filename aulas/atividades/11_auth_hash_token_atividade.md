@@ -4,14 +4,14 @@ Leia [11_auth_hash_token.md](../11_auth_hash_token.md) antes de começar. A ativ
 partes. As três primeiras são de implementação, no projeto `casalapp`. A quarta é de análise
 escrita, e fecha a sequência de autenticação iniciada na aula 10.
 
-A parte 3 é o centro da atividade: ela resolve o defeito que a seção 9 da aula apontou como o
+A parte 3 é o centro da atividade: ela resolve o defeito que a seção 8 da aula apontou como o
 mais grave.
 
 ---
 
 ## Parte 1: o botão Authorize no Swagger UI
 
-Como a aula registrou no final da seção 7, o Swagger UI documenta as rotas protegidas mas não
+Como a aula registrou no final da seção 6, o Swagger UI documenta as rotas protegidas mas não
 oferece onde informar o token, de modo que testar qualquer uma delas por lá devolve `401`.
 
 Falta declarar ao springdoc que a API usa um esquema de segurança. Isso se faz com duas
@@ -68,7 +68,7 @@ seção 2.7 da aula diz sobre aplicar hash em um hash. Desfaça a alteração ao
 
 ## Parte 3: autorização em nível de objeto
 
-Esta parte corrige o primeiro defeito da seção 9 da aula. Hoje, um usuário autenticado lê e
+Esta parte corrige o primeiro defeito da seção 8 da aula. Hoje, um usuário autenticado lê e
 altera recursos de **outras** casas, bastando trocar o id na URL.
 
 ### 1. Reproduzir a falha antes de corrigir

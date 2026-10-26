@@ -1,9 +1,11 @@
 # Aula 11: autenticação, parte 2. Hash de senha, token e proteção de rotas
 
 > **Aviso ao estudante.** A aula 10 era propositalmente insegura e avisava disso em quatro
-> pontos. Esta aula fecha os quatro. O que resulta no final é um esquema de autenticação
-> honesto, do tipo que sistemas reais usam, mas ainda incompleto em um aspecto importante, a
-> autorização em nível de objeto, que a seção 9 vai nomear e a atividade vai cobrar.
+> pontos. Esta aula fecha os quatro no backend: hash de senha, token de sessão e proteção de
+> rotas. O que resulta no final é um esquema de autenticação honesto, do tipo que sistemas
+> reais usam, mas ainda incompleto em dois aspectos. O primeiro é que o navegador ainda não
+> sabe guardar e reapresentar o token, o que é assunto da aula 12. O segundo é a autorização em
+> nível de objeto, que a seção 8 desta aula vai nomear e a atividade vai cobrar.
 
 ## Revisão: a conta que a aula 10 deixou aberta
 
@@ -1109,195 +1111,15 @@ lento de propósito, e acontece uma vez. A fase 2 é apenas uma consulta por cha
 acontece em cada requisição. É para isso que serve o token: tirar a verificação caríssima do
 caminho comum.
 
----
-
-## 6. O frontend com sessão
-
-O frontend da aula 10 guardava o usuário em uma variável que morria ao recarregar a página.
-Agora ele precisa guardar o token entre páginas e enviá-lo em cada chamada.
-
-### 6.1 Onde guardar o token no navegador
-
-| Opção | Tempo de vida | Enviado automaticamente? |
-|---|---|---|
-| Variável JavaScript | Morre ao trocar ou recarregar a página. Era a solução da aula 10. | Não. |
-| `sessionStorage` | Vive enquanto a aba estiver aberta. | Não. |
-| `localStorage` | Persiste até ser apagado, inclusive depois de fechar o navegador. | Não. |
-| *Cookie* | Prazo definido pelo servidor. | **Sim**, o navegador o anexa sozinho a cada requisição do domínio. |
-
-Escolhemos o `localStorage`, por ser explícito: é o nosso código que lê o valor e o coloca no
-cabeçalho, e isso mantém visível o mecanismo que estamos estudando. A escolha tem um custo que
-precisa ser dito, e não escondido: `localStorage` é acessível a qualquer JavaScript da página,
-de modo que uma falha de *cross site scripting* permitiria a um script injetado ler o token.
-Cookies com as marcas `HttpOnly` e `Secure` são inacessíveis ao JavaScript e, por isso, mais
-resistentes a esse ataque específico, em troca de ficarem expostos a outro, o *cross site
-request forgery*, que exige defesa própria. Nenhuma das duas opções é gratuitamente superior, e
-a escolha informada é o que se espera de quem projeta o sistema.
-
-### 6.2 Uma camada nova: `js/sessao.js`
-
-O front ganhou um arquivo que não é `api/` nem `pages/`, porque não é nenhuma das duas coisas:
-ele não conhece rotas do servidor e não toca no DOM das telas. Ele cuida do estado da sessão no
-navegador.
-
-```js
-const CHAVE_TOKEN = "casalapp.token";
-const CHAVE_USUARIO = "casalapp.usuario";
-
-function salvarSessao(login) {
-    localStorage.setItem(CHAVE_TOKEN, login.token);
-    localStorage.setItem(CHAVE_USUARIO, JSON.stringify({
-        usuarioId: login.usuarioId,
-        nome: login.nome,
-        email: login.email,
-        casaNome: login.casaNome
-    }));
-}
-
-function lerToken() {
-    return localStorage.getItem(CHAVE_TOKEN);
-}
-
-function limparSessao() {
-    localStorage.removeItem(CHAVE_TOKEN);
-    localStorage.removeItem(CHAVE_USUARIO);
-}
-```
-
-Duas observações. O `localStorage` guarda apenas texto, e é por isso que o objeto do usuário
-passa por `JSON.stringify` na ida e por `JSON.parse` na volta. E os dados do usuário gravados
-ali servem somente para a tela mostrar um nome sem esperar o servidor: eles são uma cópia
-possivelmente desatualizada, nunca a fonte da verdade. A fonte da verdade é o `GET /auth/eu`.
-
-### 6.3 O cabeçalho em um lugar só
-
-Esta é a mudança mais importante do frontend:
-
-```js
-async function requisicaoAutenticada(caminho, opcoes) {
-    const configuracao = opcoes ? opcoes : {};
-
-    configuracao.headers = {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + lerToken()
-    };
-
-    const resposta = await fetch(API_BASE_URL + caminho, configuracao);
-
-    if (resposta.status === 401) {
-        limparSessao();
-        window.location.href = "login.html";
-        throw new Error("sessão encerrada");
-    }
-
-    return resposta;
-}
-```
-
-Com ela, a camada `api/` inteira fica mais simples do que era antes. Compare o `casaApi.js` da
-aula 9 com o de hoje:
-
-```js
-async function listarCasas() {
-    const resposta = await requisicaoAutenticada("/casas");
-    return await resposta.json();
-}
-
-async function criarCasa(dados) {
-    const resposta = await requisicaoAutenticada("/casas", {
-        method: "POST",
-        body: JSON.stringify(dados)
-    });
-    return await resposta.json();
-}
-```
-
-A `API_BASE_URL`, o `Content-Type` e o `Authorization` desapareceram de cada função. O ganho não
-é apenas de digitação: ele é de **garantia**. Com o cabeçalho montado em um único ponto, não
-existe a possibilidade de uma função nova esquecer de enviá-lo. É o mesmo raciocínio que levou a
-verificação do token para um interceptor no backend, aplicado do outro lado do fio.
-
-O bloco do `401` merece atenção. Ele trata, em um lugar só, o caso do token que expirou ou foi
-invalidado: a sessão local é descartada e o navegador vai para a tela de login. O `throw` que o
-segue existe porque o redirecionamento não interrompe o código em execução, e sem ele a função
-chamadora tentaria ler o JSON de uma resposta de erro.
-
-### 6.4 Rotas privadas no frontend
-
-Cada página protegida começa com duas linhas:
-
-```js
-exigirLogin();
-configurarBarraDeSessao();
-```
-
-```js
-function exigirLogin() {
-    if (!lerToken()) {
-        window.location.href = "login.html";
-    }
-}
-```
-
-É preciso ser muito claro sobre o que essas linhas são e o que não são. **Elas não protegem
-nada.** Uma verificação feita no navegador é uma conveniência de interface: ela evita que o
-usuário veja uma tela quebrada, cheia de erros, quando sua sessão expirou. Quem protege o dado é
-o interceptor do backend, e somente ele.
-
-A diferença fica evidente num experimento simples, que vale fazer em sala: apagar as duas
-linhas, abrir a página e observar. A tela aparece, pois não há nada no navegador impedindo, mas
-as tabelas vêm vazias, porque toda chamada à API volta `401`. Nenhum dado escapa. A segurança
-nunca mora no cliente, porque o cliente está inteiramente nas mãos de quem o usa: o código
-JavaScript pode ser alterado, e as chamadas podem ser feitas direto pelo `curl`.
-
-### 6.5 O login e a saída
-
-A camada `pages/login.js` mudou em dois pontos. No sucesso, ela salva a sessão e navega para
-dentro do sistema, em vez de guardar o usuário em uma variável:
-
-```js
-    salvarSessao(resultado.corpo);
-    window.location.href = "transacoes.html";
-```
-
-E ao abrir a tela, ela pergunta ao servidor se a sessão guardada ainda vale:
-
-```js
-async function conferirSessaoNoServidor() {
-    if (!lerToken()) {
-        return;
-    }
-
-    const usuario = await buscarUsuarioLogado();
-    mostrarUsuarioLogado(usuario);
-}
-```
-
-É o uso do `GET /auth/eu` descrito na seção 5.2: quem está com uma sessão válida vê quem está e
-não precisa digitar nada; quem está com um token velho recebe `401`, é limpo pela
-`requisicaoAutenticada` e cai na própria tela de login.
-
-Por fim, uma assimetria proposital em `authApi.js`. Todas as chamadas autenticadas passam pela
-`requisicaoAutenticada`, com uma exceção:
-
-```js
-async function logout() {
-    await fetch(API_BASE_URL + "/auth/logout", {
-        method: "POST",
-        headers: { "Authorization": "Bearer " + lerToken() }
-    });
-}
-```
-
-O `logout` usa `fetch` direto. Se ele passasse pela função geral e o token já estivesse
-inválido, o `throw` do `401` interromperia o fluxo justamente antes de `limparSessao`, e o
-usuário ficaria preso com um token morto no `localStorage`. Sair do sistema precisa funcionar
-mesmo quando a sessão já não vale, o que é uma boa regra geral: operações de recuperação não
-devem depender da coisa que está quebrada.
+O diagrama usa o backend inteiro, mas também nomeia as peças do frontend, `login.js`,
+`sessao.js` e `localStorage`, que aparecem aqui apenas para fechar o desenho. Como elas se
+comportam por dentro é o assunto da aula 12: o backend já sabe emitir, validar e revogar um
+token, e falta ensinar o navegador a guardá-lo e reapresentá-lo sem que isso dependa de o
+usuário permanecer na mesma página.
 
 ---
 
-## 7. Testando pelo terminal
+## 6. Testando pelo terminal
 
 Vale percorrer a sequência inteira pelo `curl`, porque ela torna visível cada peça da aula. Os
 resultados abaixo são os obtidos durante a escrita do material.
@@ -1370,20 +1192,19 @@ primeira parte da atividade.
 
 ---
 
-## 8. O quadro antes e depois
+## 7. O quadro antes e depois
 
 | Pergunta | Aula 10 | Aula 11 |
 |---|---|---|
 | O que está na coluna de senha? | A senha, legível. | Um hash BCrypt com salt, irreversível. |
 | Como o servidor sabe quem chama? | Não sabe. | Pelo token no cabeçalho `Authorization`. |
-| O que acontece ao recarregar a página? | O usuário perde o login. | A sessão continua, apoiada no `localStorage` e conferida no servidor. |
 | `GET /transacoes` sem credencial | `200` com tudo. | `401`. |
 | `GET /transacoes` com credencial | não existia | `200` só com as transações da casa de quem pediu. |
-| Como se sai do sistema? | Limpando uma variável. | Apagando a linha do token no servidor. |
+| Como se sai do sistema? | Limpando uma variável. | Apagando a linha do token no servidor (o navegador ainda esquece ao recarregar a página, e é por isso que existe a aula 12). |
 
 ---
 
-## 9. O que ainda está errado
+## 8. O que ainda está errado
 
 A disciplina de encerrar a aula com os defeitos conhecidos se mantém, e aqui ela é mais
 importante do que nunca: um sistema que parece seguro convida menos ao exame do que um que
@@ -1433,7 +1254,7 @@ e um sistema em construção é essa lista existir.
 
 ---
 
-## 10. Atividade
+## 9. Atividade
 
 A atividade desta aula está em
 [atividades/11_auth_hash_token_atividade.md](atividades/11_auth_hash_token_atividade.md). Ela
@@ -1472,9 +1293,7 @@ Documentação oficial dos recursos usados nesta aula.
     https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
 12. OWASP API Security Top 10, `API1:2023 Broken Object Level Authorization`:
     https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/
-13. MDN, `localStorage` e o escopo de armazenamento no navegador:
-    https://developer.mozilla.org/pt-BR/docs/Web/API/Window/localStorage
-14. MDN, requisições com preflight no CORS:
+13. MDN, requisições com preflight no CORS:
     https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Guides/CORS#requisi%C3%A7%C3%B5es_com_preflight
-15. Java, javadoc de `UUID.randomUUID`:
+14. Java, javadoc de `UUID.randomUUID`:
     https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/UUID.html#randomUUID()
